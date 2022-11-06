@@ -5,7 +5,7 @@ import seaborn as sns; sns.set()
 from sklearn.datasets import make_blobs
 
 
-def split_dataset(X, y, num_datasets=10, is_GMM=True, scatterness=-1):
+def split_dataset(X, y, num_datasets=10, is_GMM=True, scatterness=1):
 
     N, d = X.shape
     datasets = []
@@ -19,7 +19,7 @@ def split_dataset(X, y, num_datasets=10, is_GMM=True, scatterness=-1):
         for i in range(num_datasets):
             datasets_indices.append(labels == i)
         # if scatterness is 1, return the split done by GMM
-        if scatterness == -1:
+        if scatterness == 1:
             for i in range(num_datasets):
                 datasets.append([X[datasets_indices[i]], y[datasets_indices[i]]])
             return datasets
@@ -48,8 +48,21 @@ def split_dataset(X, y, num_datasets=10, is_GMM=True, scatterness=-1):
 
     # split the dataset using bootstrap
     else:
-        pass
-
+        np.random.shuffle(X)
+        dataset_size = N // num_datasets
+        for i in range(num_datasets):
+            one_left = 1 if i == num_datasets - 1 and dataset_size < N / num_datasets else 0
+            start = i * dataset_size
+            end = min((i + 1) * dataset_size + one_left, N)
+            indices = np.arange(start, end)
+            extra_size = int((scatterness - 1) * dataset_size)
+            extra_indices = np.random.choice(
+                np.hstack((np.arange(0, start), np.arange(end, N))),
+                extra_size,
+                replace=False
+            )
+            indices = np.hstack((indices, extra_indices))
+            datasets.append([X[indices], y[indices]])
 
     return datasets
 
@@ -58,20 +71,21 @@ if __name__ == "__main__":
     num_datasets = 5
     N = 1000
     num_dim = 2
-    scatterness = 2
+    scatterness = 1.5
 
     X, y = make_blobs(n_samples=N, centers=num_datasets,
                            cluster_std=1.5, random_state=1)
 
-    datasets = split_dataset(X, y, num_datasets, True, scatterness)
-    X = []
+    datasets = split_dataset(X, y, num_datasets, False, scatterness)
+    XGMM = []
     labels = []
     for i in range(num_datasets):
-        X.extend(datasets[i][0])
+        plt.scatter(datasets[i][0][:, 0], datasets[i][0][:, 1], cmap='viridis')
+        plt.show()
+        XGMM.extend(datasets[i][0])
         labels.extend([i] * len(datasets[i][0]))
-    X = np.array(X)
+    XGMM = np.array(XGMM)
     for i in range(num_datasets):
         print(f"Dataset {i} has {len(datasets[i][0])} entries.")
     labels = np.array(labels)
-    plt.scatter(X[:, 0], X[:, 1], c=labels, s=40, cmap='viridis')
-    plt.show()
+    plt.scatter(XGMM[:, 0], XGMM[:, 1], c=labels, s=40, cmap='viridis')
