@@ -80,7 +80,7 @@ if __name__ == "__main__":
     XGMM = []
     labels = []
     for i in range(num_datasets):
-        plt.scatter(datasets[i][0][:, 0], datasets[i][0][:, 1], cmap='viridis')
+        plt.scatter(datasets[i][0][:, 0], datasets[i][0][:, 1])
         plt.show()
         XGMM.extend(datasets[i][0])
         labels.extend([i] * len(datasets[i][0]))
@@ -89,3 +89,4 @@ if __name__ == "__main__":
         print(f"Dataset {i} has {len(datasets[i][0])} entries.")
     labels = np.array(labels)
     plt.scatter(XGMM[:, 0], XGMM[:, 1], c=labels, s=40, cmap='viridis')
+    plt.show()
