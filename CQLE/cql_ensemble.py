@@ -64,6 +64,8 @@ class CQLETrainer():
         self.num_agents = num_agents
         self.is_GMM = is_GMM
         self.scatterness = scatterness
+        self.means = []
+        self.covs = []
 
         # Create the cql agents
         if self.num_agents < 1:
@@ -118,6 +120,7 @@ class CQLETrainer():
         y = []
         for i in range(N):
             y.append([next_obs[i], actions[i], rewards[i], terminals[i]])
+        y = np.array(y, dtype=object)
         wrapped_datasets = split_dataset(
             X,
             y,
@@ -126,11 +129,9 @@ class CQLETrainer():
             scatterness=self.scatterness
         )
 
-        self.means = []
-        self.covs = []
         for agent_id in range(self.num_agents):
             self.means.append(np.mean(wrapped_datasets[agent_id][0], axis=0))
-            self.covs.append(np.cov(wrapped_datasets[agent_id[0]], axis=0))
+            self.covs.append(np.cov(wrapped_datasets[agent_id[0]].T))
 
         # batches is a dictionary {agent_id: batch for the agent}
         for agent_id in range(self.num_agents):
@@ -168,20 +169,20 @@ if __name__ == "__main__":
     ptu.set_gpu_mode(True)
     dataset = gym.make('hopper-medium-v0').unwrapped.get_dataset()
     print(dataset.keys())
-    observations = dataset['observations']
+    observations = dataset['observations'][:1000]
     # next_obs = dataset['next_observations']
-    actions = dataset['actions']
-    rewards = np.expand_dims(np.squeeze(dataset['rewards']), 1)
-    terminals = np.expand_dims(np.squeeze(dataset['terminals']), 1)
-    N = observations.shape[1]
+    actions = dataset['actions'][:1000]
+    rewards = np.expand_dims(np.squeeze(dataset['rewards']), 1)[:1000]
+    terminals = np.expand_dims(np.squeeze(dataset['terminals']), 1)[:1000]
+    N = observations.shape[0]
     X = observations
     y = []
     for i in range(N):
         y.append([actions[i], rewards[i], terminals[i]])
     wrapped_datasets = split_dataset(
-        X,
-        np.array(y),
-        is_GMM=False
+        np.array(X),
+        np.array(y, dtype=object),
+        is_GMM=True
     )
     print(N)
-    print(wrapped_datasets)
+    print(wrapped_datasets[0][0].shape)

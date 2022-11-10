@@ -61,8 +61,8 @@ def split_dataset(X, y, num_datasets=10, is_GMM=True, scatterness=1):
                 extra_size,
                 replace=False
             )
-            indices = np.hstack((indices, extra_indices)).T
-            datasets.append([X[indices.astype(int), :], y[indices.astype(int)]])
+            indices = np.hstack((indices, extra_indices))
+            datasets.append([X[indices.astype(int)], y[indices.astype(int)]])
 
     return datasets
 
@@ -75,6 +75,8 @@ if __name__ == "__main__":
 
     X, y = make_blobs(n_samples=N, centers=num_datasets,
                            cluster_std=1.5, random_state=1)
+
+    print(X)
 
     datasets = split_dataset(X, y, num_datasets, False, scatterness)
     XGMM = []
@@ -97,4 +99,4 @@ if __name__ == "__main__":
     axs[1, 2].set_xlim([-15, 4])
     axs[1, 2].set_ylim([-12.5, 10])
     axs[1, 2].set_title(f"{sum([len(datasets[i][0]) for i in range(num_datasets)])} data entries")
-    plt.show()
+    # plt.show()
