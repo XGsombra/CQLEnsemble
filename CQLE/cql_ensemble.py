@@ -1,7 +1,11 @@
+import gym
+import d4rl
 from rlkit.torch.sac.cql import CQLTrainer
 from dataset_spliter import split_dataset
+from rlkit.launchers.launcher_util import setup_logger
 
 from collections import OrderedDict
+import argparse, os
 
 import numpy as np
 import torch
@@ -122,6 +126,12 @@ class CQLETrainer():
             scatterness=self.scatterness
         )
 
+        self.means = []
+        self.covs = []
+        for agent_id in range(self.num_agents):
+            self.means.append(np.mean(wrapped_datasets[agent_id][0], axis=0))
+            self.covs.append(np.cov(wrapped_datasets[agent_id[0]], axis=0))
+
         # batches is a dictionary {agent_id: batch for the agent}
         for agent_id in range(self.num_agents):
             dataset['observations'] = wrapped_datasets[agent_id][0]
@@ -130,3 +140,48 @@ class CQLETrainer():
             dataset['rewards'] = wrapped_datasets[agent_id][1][2]
             dataset['terminals'] = wrapped_datasets[agent_id][1][3]
             self.agents[agent_id].train(dataset)
+    def _get_tensor_values(self, obs, actions):
+        action_shape = actions.shape[0]
+        obs_shape = obs.shape[0]
+        num_repeat = int(action_shape / obs_shape)
+        obs_temp = obs.unsqueeze(1).repeat(1, num_repeat, 1).view(obs.shape[0] * num_repeat, obs.shape[1])
+        final_preds = 0
+        for agent_id in range(self.num_agents):
+            confidence = np.exp(-(obs - self.means[i])**2 @ self.covs)
+            preds = self.agents[agent_id](obs_temp, actions)
+            preds = preds.view(obs.shape[0], num_repeat, 1)
+            final_preds += preds * confidence
+        return final_preds
+
+    def _get_policy_actions(self, obs, num_actions, network=None):
+        obs_temp = obs.unsqueeze(1).repeat(1, num_actions, 1).view(obs.shape[0] * num_actions, obs.shape[1])
+        new_obs_actions, _, _, new_obs_log_pi, *_ = network(
+            obs_temp, reparameterize=True, return_log_prob=True,
+        )
+        if not self.discrete:
+            return new_obs_actions, new_obs_log_pi.view(obs.shape[0], num_actions, 1)
+        else:
+            return new_obs_actions
+
+if __name__ == "__main__":
+    rnd = np.random.randint(0, 1000000)
+    ptu.set_gpu_mode(True)
+    dataset = gym.make('hopper-medium-v0').unwrapped.get_dataset()
+    print(dataset.keys())
+    observations = dataset['observations']
+    # next_obs = dataset['next_observations']
+    actions = dataset['actions']
+    rewards = np.expand_dims(np.squeeze(dataset['rewards']), 1)
+    terminals = np.expand_dims(np.squeeze(dataset['terminals']), 1)
+    N = observations.shape[1]
+    X = observations
+    y = []
+    for i in range(N):
+        y.append([actions[i], rewards[i], terminals[i]])
+    wrapped_datasets = split_dataset(
+        X,
+        np.array(y),
+        is_GMM=False
+    )
+    print(N)
+    print(wrapped_datasets)

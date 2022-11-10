@@ -61,8 +61,8 @@ def split_dataset(X, y, num_datasets=10, is_GMM=True, scatterness=1):
                 extra_size,
                 replace=False
             )
-            indices = np.hstack((indices, extra_indices))
-            datasets.append([X[indices], y[indices]])
+            indices = np.hstack((indices, extra_indices)).T
+            datasets.append([X[indices.astype(int), :], y[indices.astype(int)]])
 
     return datasets
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     num_datasets = 5
     N = 1000
     num_dim = 2
-    scatterness = 1.5
+    scatterness = 2
 
     X, y = make_blobs(n_samples=N, centers=num_datasets,
                            cluster_std=1.5, random_state=1)
@@ -79,14 +79,22 @@ if __name__ == "__main__":
     datasets = split_dataset(X, y, num_datasets, False, scatterness)
     XGMM = []
     labels = []
+
+    fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(15, 15))
     for i in range(num_datasets):
-        plt.scatter(datasets[i][0][:, 0], datasets[i][0][:, 1])
-        plt.show()
+        axs[i//3, i%3].scatter(datasets[i][0][:, 0], datasets[i][0][:, 1], s=5)
+        axs[i//3, i%3].set_xlim([-15, 4])
+        axs[i//3, i%3].set_ylim([-12.5, 10])
+        axs[i//3, i%3].set_title(f"{len(datasets[i][0])} data entries")
+        # axs[i // 3, i % 3].set_axis_off()
         XGMM.extend(datasets[i][0])
         labels.extend([i] * len(datasets[i][0]))
     XGMM = np.array(XGMM)
     for i in range(num_datasets):
         print(f"Dataset {i} has {len(datasets[i][0])} entries.")
     labels = np.array(labels)
-    plt.scatter(XGMM[:, 0], XGMM[:, 1], c=labels, s=40, cmap='viridis')
+    axs[1, 2].scatter(XGMM[:, 0], XGMM[:, 1], c=labels, s=5, cmap='viridis')
+    axs[1, 2].set_xlim([-15, 4])
+    axs[1, 2].set_ylim([-12.5, 10])
+    axs[1, 2].set_title(f"{sum([len(datasets[i][0]) for i in range(num_datasets)])} data entries")
     plt.show()

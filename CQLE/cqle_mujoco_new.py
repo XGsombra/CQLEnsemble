@@ -83,7 +83,7 @@ def experiment(variant):
     else:
         load_hdf5(d4rl.qlearning_dataset(eval_env), replay_buffer)
        
-    trainer = CQLETrainer(
+    trainer = CQLTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
