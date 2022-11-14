@@ -131,7 +131,7 @@ class CQLETrainer():
 
         for agent_id in range(self.num_agents):
             self.means.append(np.mean(wrapped_datasets[agent_id][0], axis=0))
-            self.covs.append(np.cov(wrapped_datasets[agent_id[0]].T))
+            self.covs.append(np.cov(wrapped_datasets[agent_id][0].T))
 
         # batches is a dictionary {agent_id: batch for the agent}
         for agent_id in range(self.num_agents):
@@ -170,7 +170,7 @@ if __name__ == "__main__":
     dataset = gym.make('hopper-medium-v0').unwrapped.get_dataset()
     print(dataset.keys())
     observations = dataset['observations'][:1000]
-    # next_obs = dataset['next_observations']
+    next_obs = dataset['observations']
     actions = dataset['actions'][:1000]
     rewards = np.expand_dims(np.squeeze(dataset['rewards']), 1)[:1000]
     terminals = np.expand_dims(np.squeeze(dataset['terminals']), 1)[:1000]
@@ -184,5 +184,10 @@ if __name__ == "__main__":
         np.array(y, dtype=object),
         is_GMM=True
     )
-    print(N)
-    print(wrapped_datasets[0][0].shape)
+    for d in wrapped_datasets:
+        print(len(d[0]))
+    dataset['observations'] = wrapped_datasets[0][0]
+    dataset['next_observations'] = wrapped_datasets[0][1][0]
+    dataset['actions'] = wrapped_datasets[0][1][1]
+    dataset['rewards'] = wrapped_datasets[0][1][2]
+    dataset['terminals'] = wrapped_datasets[0][1][3]
