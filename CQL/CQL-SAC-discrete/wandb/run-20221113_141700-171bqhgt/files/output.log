@@ -1,0 +1,2 @@
+C:\Users\vince\anaconda3\lib\site-packages\pyglet\image\codecs\wic.py:406: UserWarning: [WinError -2147417850] 无法在设置线程模式后对其加以更改。
+  warnings.warn(str(err))

@@ -1,0 +1,82 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.13.5
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.6.10
+    start_time: 1668383059.969206
+    t:
+      1:
+      - 1
+      - 3
+      - 5
+      - 53
+      - 54
+      - 55
+      2:
+      - 1
+      - 3
+      - 5
+      - 53
+      - 54
+      - 55
+      3:
+      - 1
+      - 2
+      - 13
+      - 16
+      - 23
+      4: 3.6.10
+      5: 0.13.5
+      8:
+      - 3
+      - 5
+batch_size:
+  desc: null
+  value: 512
+cql_weight:
+  desc: null
+  value: 1.0
+env:
+  desc: null
+  value: hopper-medium-v0
+episodes:
+  desc: null
+  value: 100
+eval_every:
+  desc: null
+  value: 1
+hidden_size:
+  desc: null
+  value: 256
+learning_rate:
+  desc: null
+  value: 0.0003
+log_video:
+  desc: null
+  value: 0
+run_name:
+  desc: null
+  value: CQL
+save_every:
+  desc: null
+  value: 100
+seed:
+  desc: null
+  value: 1
+target_action_gap:
+  desc: null
+  value: 10
+tau:
+  desc: null
+  value: 0.005
+temperature:
+  desc: null
+  value: 1.0
+with_lagrange:
+  desc: null
+  value: 0

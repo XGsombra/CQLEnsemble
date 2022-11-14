@@ -1,0 +1,53 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    cli_version: 0.13.5
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.6.10
+    start_time: 1668372550.696943
+    t:
+      1:
+      - 1
+      - 55
+      2:
+      - 1
+      - 55
+      3:
+      - 1
+      - 2
+      - 13
+      - 16
+      - 23
+      4: 3.6.10
+      5: 0.13.5
+      8:
+      - 3
+      - 5
+batch_size:
+  desc: null
+  value: 256
+buffer_size:
+  desc: null
+  value: 100000
+env:
+  desc: null
+  value: LunarLander-v2
+episodes:
+  desc: null
+  value: 20
+log_video:
+  desc: null
+  value: 1
+run_name:
+  desc: null
+  value: ggdiscrete
+save_every:
+  desc: null
+  value: 100
+seed:
+  desc: null
+  value: 1
