@@ -11,7 +11,7 @@ import random
 from agent import CQLSAC
 from torch.utils.data import DataLoader, TensorDataset
 from dataset_splitter import split_dataset
-import json
+from ensemble import CQLEnsemble
 
 def get_config():
     parser = argparse.ArgumentParser(description='RL')
@@ -61,15 +61,16 @@ def prep_dataloaders(config):
         s=config.s
     )
 
+    dataloaders = []
+    for i in range(config.num_agents):
+        tensordata = TensorDataset(datasets[i]["observations"],
+                                   datasets[i]["actions"],
+                                   datasets[i]["rewards"],
+                                   datasets[i]["next_observations"],
+                                   datasets[i]["terminals"])
+        dataloaders.append(DataLoader(tensordata, batch_size=config.batch_size, shuffle=True))
 
-    tensordata = TensorDataset(tensors["observations"],
-                               tensors["actions"],
-                               tensors["rewards"][:, None],
-                               tensors["next_observations"],
-                               tensors["terminals"][:, None])
-    dataloader = DataLoader(tensordata, batch_size=config.batch_size, shuffle=True)
-
-    return dataloader, eval_env
+    return dataloaders, eval_env
 
 def evaluate(env, policy, eval_runs=5): 
     """
@@ -90,12 +91,25 @@ def evaluate(env, policy, eval_runs=5):
         reward_batch.append(rewards)
     return np.mean(reward_batch)
 
+def reformat_dataloaders(dataloaders):
+    # [(batch_idx, [batched experiences for all agents])]
+    num_agents = len(dataloaders)
+    extracted_datasets = [[batch for _, batch in enumerate(dataloaders[i])] for i in range(num_agents)]
+    max_batch_num = max([len(h) for h in extracted_datasets])
+    new_dataset = []
+    for i in range(max_batch_num):
+        batch_i = []
+        for agent_id in range(num_agents):
+            batch_i.append(extracted_datasets[agent_id][i] if len(extracted_datasets[agent_id]) > i else [])
+        new_dataset.append((i, batch_i))
+    return new_dataset
+
 def train(config):
     np.random.seed(config.seed)
     random.seed(config.seed)
     torch.manual_seed(config.seed)
 
-    dataloader, env = prep_dataloaders(config)
+    dataloaders, env = prep_dataloaders(config)
 
     # env.action_space.seed(config.seed)
 
@@ -104,39 +118,79 @@ def train(config):
     batches = 0
     average10 = deque(maxlen=10)
     
-    with wandb.init(project="CQL-offline", name=config.run_name, config=config):
+    with wandb.init(project="CQL-ensemble-offline", name=config.run_name, config=config):
         
-        agent = CQLSAC(state_size=env.observation_space.shape[0],
-                        action_size=env.action_space.shape[0],
-                        tau=config.tau,
-                        hidden_size=config.hidden_size,
-                        learning_rate=config.learning_rate,
-                        temp=config.temperature,
-                        with_lagrange=config.with_lagrange,
-                        cql_weight=config.cql_weight,
-                        target_action_gap=config.target_action_gap,
-                        device=device)
+        ensemble = CQLEnsemble(
+            state_size=env.observation_space.shape[0],
+            action_size=env.action_space.shape[0],
+            tau=config.tau,
+            hidden_size=config.hidden_size,
+            learning_rate=config.learning_rate,
+            temp=config.temperature,
+            with_lagrange=config.with_lagrange,
+            cql_weight=config.cql_weight,
+            target_action_gap=config.target_action_gap,
+            device=device,
+            num_agents=config.num_agents,
+            is_GMM=config.is_GMM==1,
+            s=config.s,
+        )
 
-        wandb.watch(agent, log="gradients", log_freq=10)
+        # wandb.watch(ensemble, log="gradients", log_freq=10)
         if config.log_video:
             env = gym.wrappers.Monitor(env, './video', video_callable=lambda x: x%10==0, force=True)
 
-        eval_reward = evaluate(env, agent)
+        eval_reward = evaluate(env, ensemble)
         wandb.log({"Test Reward": eval_reward, "Episode": 0, "Batches": batches}, step=batches)
         for i in range(1, config.episodes+1):
 
-            for batch_idx, experience in enumerate(dataloader):
-                states, actions, rewards, next_states, dones = experience
-                states = states.to(device)
-                actions = actions.to(device)
-                rewards = rewards.to(device)
-                next_states = next_states.to(device)
-                dones = dones.to(device)
-                policy_loss, alpha_loss, bellmann_error1, bellmann_error2, cql1_loss, cql2_loss, current_alpha, lagrange_alpha_loss, lagrange_alpha = agent.learn((states, actions, rewards, next_states, dones))
-                batches += 1
+            dataset = reformat_dataloaders(dataloaders)
+
+            for batch_idx, experiences in dataset:
+                total_policy_loss = []
+                total_alpha_loss = []
+                total_bellmann_error1 = []
+                total_bellmann_error2 = []
+                total_cql1_loss = []
+                total_cql2_loss = []
+                total_current_alpha = []
+                total_lagrange_alpha_loss = []
+                total_lagrange_alpha = []
+
+                for agent_id in range(ensemble.num_agents):
+                    experience = experiences[agent_id]
+                    states, actions, rewards, next_states, dones = experience
+                    states = states.to(device)
+                    actions = actions.to(device)
+                    rewards = rewards.to(device)
+                    next_states = next_states.to(device)
+
+                    dones = dones.to(device)
+                    policy_loss, alpha_loss, bellmann_error1, bellmann_error2, cql1_loss, cql2_loss, current_alpha, lagrange_alpha_loss, lagrange_alpha = ensemble.CQL_agents[agent_id].learn((states, actions, rewards, next_states, dones))
+                    batches += 1
+
+                    total_policy_loss.append(policy_loss)
+                    total_alpha_loss.append(alpha_loss)
+                    total_bellmann_error1.append(bellmann_error1)
+                    total_bellmann_error2.append(bellmann_error2)
+                    total_cql1_loss.append(cql1_loss)
+                    total_cql2_loss.append(cql2_loss)
+                    total_current_alpha.append(current_alpha)
+                    total_lagrange_alpha_loss.append(lagrange_alpha_loss)
+                    total_lagrange_alpha.append(lagrange_alpha)
+
+                policy_loss = sum(total_policy_loss) / ensemble.num_agents
+                alpha_loss = sum(total_alpha_loss) / ensemble.num_agents
+                bellmann_error1 = sum(total_bellmann_error1) / ensemble.num_agents
+                bellmann_error2 = sum(total_bellmann_error2) / ensemble.num_agents
+                cql1_loss = sum(total_cql1_loss) / ensemble.num_agents
+                cql2_loss = sum(total_cql2_loss) / ensemble.num_agents
+                current_alpha = sum(total_current_alpha) / ensemble.num_agents
+                lagrange_alpha_loss = sum(total_lagrange_alpha_loss) / ensemble.num_agents
+                lagrange_alpha = sum(total_lagrange_alpha) / ensemble.num_agents
 
             if i % config.eval_every == 0:
-                eval_reward = evaluate(env, agent)
+                eval_reward = evaluate(env, ensemble)
                 wandb.log({"Test Reward": eval_reward, "Episode": i, "Batches": batches}, step=batches)
 
                 average10.append(eval_reward)

@@ -1,0 +1,16 @@
+Track generation: 1055..1332 -> 277-tiles track
+Track generation: 1069..1347 -> 278-tiles track
+C:\Users\vince\anaconda3\lib\site-packages\pyglet\image\codecs\wic.py:406: UserWarning: [WinError -2147417850] 无法在设置线程模式后对其加以更改。
+  warnings.warn(str(err))
+Track generation: 1251..1568 -> 317-tiles track
+Track generation: 1187..1488 -> 301-tiles track
+Track generation: 1264..1584 -> 320-tiles track
+Track generation: 1008..1264 -> 256-tiles track
+Track generation: 1152..1444 -> 292-tiles track
+Track generation: 1172..1469 -> 297-tiles track
+Track generation: 1136..1424 -> 288-tiles track
+Track generation: 1060..1329 -> 269-tiles track
+Track generation: 1207..1513 -> 306-tiles track
+Track generation: 1010..1270 -> 260-tiles track
+retry to generate track (normal if there are not manyinstances of this message)
+Track generation: 1142..1432 -> 290-tiles track
