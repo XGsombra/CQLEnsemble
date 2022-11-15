@@ -14,7 +14,7 @@ import numpy as np
 import h5py
 import d4rl, gym
 
-from dataset_spliter import split_dataset
+from dataset_splitter import split_dataset
 
 
 def load_hdf5(dataset, replay_buffer):

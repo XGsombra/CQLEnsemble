@@ -186,8 +186,8 @@ class CQLSAC(nn.Module):
         assert cat_q2.shape == (states.shape[0], 3 * num_repeat, 1), f"cat_q2 instead has shape: {cat_q2.shape}"
         
 
-        cql1_scaled_loss = ((torch.logsumexp(cat_q1 / self.temp, dim=1).mean() * self.cql_weight * self.temp) - q1.mean()) * self.cql_weight
-        cql2_scaled_loss = ((torch.logsumexp(cat_q2 / self.temp, dim=1).mean() * self.cql_weight * self.temp) - q2.mean()) * self.cql_weight
+        cql1_scaled_loss = ((torch.logsumexp(cat_q1 / self.temp, dim=1).mean() * self.temp) - q1.mean()) * self.cql_weight
+        cql2_scaled_loss = ((torch.logsumexp(cat_q2 / self.temp, dim=1).mean() * self.temp) - q2.mean()) * self.cql_weight
         
         cql_alpha_loss = torch.FloatTensor([0.0])
         cql_alpha = torch.FloatTensor([0.0])

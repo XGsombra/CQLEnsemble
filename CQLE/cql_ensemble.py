@@ -1,7 +1,7 @@
 import gym
 import d4rl
 from rlkit.torch.sac.cql import CQLTrainer
-from dataset_spliter import split_dataset
+from dataset_splitter import split_dataset
 from rlkit.launchers.launcher_util import setup_logger
 
 from collections import OrderedDict
