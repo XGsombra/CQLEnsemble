@@ -1,0 +1,36 @@
+2022-11-14 23:32:14,445 INFO    StreamThr :22076 [internal.py:wandb_internal():88] W&B internal server running at pid: 22076, started at: 2022-11-14 23:32:14.444395
+2022-11-14 23:32:14,447 DEBUG   HandlerThread:22076 [handler.py:handle_request():139] handle_request: status
+2022-11-14 23:32:14,451 DEBUG   SenderThread:22076 [sender.py:send_request():317] send_request: status
+2022-11-14 23:32:14,452 DEBUG   SenderThread:22076 [sender.py:send():303] send: header
+2022-11-14 23:32:14,452 INFO    WriterThread:22076 [datastore.py:open_for_write():75] open: C:\Users\vince\Desktop\workplace\CQLEnsemble\CQLE\CQLE-SAC\wandb\run-20221114_233214-3ffy0ppi\run-3ffy0ppi.wandb
+2022-11-14 23:32:14,486 DEBUG   SenderThread:22076 [sender.py:send():303] send: run
+2022-11-14 23:32:14,654 DEBUG   HandlerThread:22076 [handler.py:handle_request():139] handle_request: check_version
+2022-11-14 23:32:14,664 INFO    SenderThread:22076 [dir_watcher.py:__init__():216] watching files in: C:\Users\vince\Desktop\workplace\CQLEnsemble\CQLE\CQLE-SAC\wandb\run-20221114_233214-3ffy0ppi\files
+2022-11-14 23:32:14,664 INFO    SenderThread:22076 [sender.py:_start_run_threads():928] run started: 3ffy0ppi with start time 1668486734.444394
+2022-11-14 23:32:14,664 DEBUG   SenderThread:22076 [sender.py:send():303] send: summary
+2022-11-14 23:32:14,665 INFO    SenderThread:22076 [sender.py:_save_file():1171] saving file wandb-summary.json with policy end
+2022-11-14 23:32:14,666 DEBUG   SenderThread:22076 [sender.py:send_request():317] send_request: check_version
+2022-11-14 23:32:14,743 DEBUG   HandlerThread:22076 [handler.py:handle_request():139] handle_request: run_start
+2022-11-14 23:32:14,786 DEBUG   HandlerThread:22076 [system_info.py:__init__():31] System info init
+2022-11-14 23:32:14,786 DEBUG   HandlerThread:22076 [system_info.py:__init__():46] System info init done
+2022-11-14 23:32:14,786 INFO    HandlerThread:22076 [system_monitor.py:start():150] Starting system monitor
+2022-11-14 23:32:14,786 INFO    SystemMonitor:22076 [system_monitor.py:_start():116] Starting system asset monitoring threads
+2022-11-14 23:32:14,787 INFO    HandlerThread:22076 [system_monitor.py:probe():168] Collecting system info
+2022-11-14 23:32:14,793 INFO    SystemMonitor:22076 [interfaces.py:start():168] Started cpu
+2022-11-14 23:32:14,794 INFO    SystemMonitor:22076 [interfaces.py:start():168] Started disk
+2022-11-14 23:32:14,794 INFO    SystemMonitor:22076 [interfaces.py:start():168] Started gpu
+2022-11-14 23:32:14,795 INFO    SystemMonitor:22076 [interfaces.py:start():168] Started memory
+2022-11-14 23:32:14,819 INFO    SystemMonitor:22076 [interfaces.py:start():168] Started network
+2022-11-14 23:32:14,824 DEBUG   HandlerThread:22076 [system_info.py:probe():195] Probing system
+2022-11-14 23:32:14,826 DEBUG   HandlerThread:22076 [system_info.py:_probe_git():180] Probing git
+2022-11-14 23:32:14,969 DEBUG   HandlerThread:22076 [system_info.py:_probe_git():188] Probing git done
+2022-11-14 23:32:14,969 DEBUG   HandlerThread:22076 [system_info.py:probe():241] Probing system done
+2022-11-14 23:32:14,969 DEBUG   HandlerThread:22076 [system_monitor.py:probe():177] {'os': 'Windows-10-10.0.22000-SP0', 'python': '3.9.12', 'heartbeatAt': '2022-11-15T04:32:14.824805', 'startedAt': '2022-11-15T04:32:14.430385', 'docker': None, 'cuda': None, 'args': (), 'state': 'running', 'program': 'C:\\Users\\vince\\Desktop\\workplace\\CQLEnsemble\\CQLE\\CQLE-SAC\\train_offline.py', 'codePath': 'CQLE\\CQLE-SAC\\train_offline.py', 'git': {'remote': 'https://github.com/XGsombra/CQLEnsemble', 'commit': '5289a8db912cb6fa7ddcc23ab81d0d922240c6bb'}, 'email': 'xuduo.gu@mail.utoronto.ca', 'root': 'C:/Users/vince/Desktop/workplace/CQLEnsemble', 'host': 'XiaoCai', 'username': 'vince', 'executable': 'C:\\Users\\vince\\anaconda3\\python.exe', 'cpu_count': 14, 'cpu_count_logical': 20, 'cpu_freq': {'current': 2300.0, 'min': 0.0, 'max': 2300.0}, 'cpu_freq_per_core': [{'current': 2300.0, 'min': 0.0, 'max': 2300.0}], 'disk': {'total': 533.9804649353027, 'used': 440.2702293395996}, 'gpu': 'NVIDIA GeForce RTX 3060 Laptop GPU', 'gpu_count': 1, 'gpu_devices': [{'name': 'NVIDIA GeForce RTX 3060 Laptop GPU', 'memory_total': 6442450944}], 'memory': {'total': 31.692127227783203}}
+2022-11-14 23:32:14,970 INFO    HandlerThread:22076 [system_monitor.py:probe():178] Finished collecting system info
+2022-11-14 23:32:14,970 INFO    HandlerThread:22076 [system_monitor.py:probe():181] Publishing system info
+2022-11-14 23:32:14,970 DEBUG   HandlerThread:22076 [system_info.py:_save_pip():51] Saving list of pip packages installed into the current environment
+2022-11-14 23:32:14,971 DEBUG   HandlerThread:22076 [system_info.py:_save_pip():67] Saving pip packages done
+2022-11-14 23:32:14,972 DEBUG   HandlerThread:22076 [system_info.py:_save_conda():74] Saving list of conda packages installed into the current environment
+2022-11-14 23:32:15,677 INFO    Thread-17 :22076 [dir_watcher.py:_on_file_created():275] file/dir created: C:\Users\vince\Desktop\workplace\CQLEnsemble\CQLE\CQLE-SAC\wandb\run-20221114_233214-3ffy0ppi\files\requirements.txt
+2022-11-14 23:32:15,677 INFO    Thread-17 :22076 [dir_watcher.py:_on_file_created():275] file/dir created: C:\Users\vince\Desktop\workplace\CQLEnsemble\CQLE\CQLE-SAC\wandb\run-20221114_233214-3ffy0ppi\files\wandb-summary.json
+2022-11-14 23:32:15,677 INFO    Thread-17 :22076 [dir_watcher.py:_on_file_created():275] file/dir created: C:\Users\vince\Desktop\workplace\CQLEnsemble\CQLE\CQLE-SAC\wandb\run-20221114_233214-3ffy0ppi\files\conda-environment.yaml
