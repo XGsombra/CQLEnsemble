@@ -70,6 +70,8 @@ def prep_dataloaders(config):
                                    datasets[i]["terminals"])
         dataloaders.append(DataLoader(tensordata, batch_size=config.batch_size, shuffle=True))
 
+    print("------------------------------------dataloaders generated------------------------------")
+
     return dataloaders, eval_env
 
 def evaluate(env, policy, eval_runs=5): 
@@ -157,8 +159,13 @@ def train(config):
                 total_lagrange_alpha_loss = []
                 total_lagrange_alpha = []
 
+                num_training_agents = 0
+
                 for agent_id in range(ensemble.num_agents):
                     experience = experiences[agent_id]
+                    if len(experience) == 0:
+                        continue
+                    num_training_agents += 1
                     states, actions, rewards, next_states, dones = experience
                     states = states.to(device)
                     actions = actions.to(device)
@@ -179,15 +186,15 @@ def train(config):
                     total_lagrange_alpha_loss.append(lagrange_alpha_loss)
                     total_lagrange_alpha.append(lagrange_alpha)
 
-                policy_loss = sum(total_policy_loss) / ensemble.num_agents
-                alpha_loss = sum(total_alpha_loss) / ensemble.num_agents
-                bellmann_error1 = sum(total_bellmann_error1) / ensemble.num_agents
-                bellmann_error2 = sum(total_bellmann_error2) / ensemble.num_agents
-                cql1_loss = sum(total_cql1_loss) / ensemble.num_agents
-                cql2_loss = sum(total_cql2_loss) / ensemble.num_agents
-                current_alpha = sum(total_current_alpha) / ensemble.num_agents
-                lagrange_alpha_loss = sum(total_lagrange_alpha_loss) / ensemble.num_agents
-                lagrange_alpha = sum(total_lagrange_alpha) / ensemble.num_agents
+                policy_loss = sum(total_policy_loss) / num_training_agents
+                alpha_loss = sum(total_alpha_loss) / num_training_agents
+                bellmann_error1 = sum(total_bellmann_error1) / num_training_agents
+                bellmann_error2 = sum(total_bellmann_error2) / num_training_agents
+                cql1_loss = sum(total_cql1_loss) / num_training_agents
+                cql2_loss = sum(total_cql2_loss) / num_training_agents
+                current_alpha = sum(total_current_alpha) / num_training_agents
+                lagrange_alpha_loss = sum(total_lagrange_alpha_loss) / num_training_agents
+                lagrange_alpha = sum(total_lagrange_alpha) / num_training_agents
 
             if i % config.eval_every == 0:
                 eval_reward = evaluate(env, ensemble)

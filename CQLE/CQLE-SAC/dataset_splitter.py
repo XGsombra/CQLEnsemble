@@ -14,13 +14,14 @@ def split_dataset(observations, actions, rewards, next_observations, terminals, 
 
     # split the dataset by GMM
     if is_GMM:
-        gmm = GaussianMixture(n_components=num_datasets).fit(obs)
-        labels = gmm.predict(obs)
+        gmm = GaussianMixture(n_components=num_datasets).fit(observations)
+        labels = gmm.predict(observations)
         # classify each data point to a cluster
         for i in range(num_datasets):
             datasets_indices.append(labels == i)
         # if s is 1, return the split done by GMM
         if s == 1:
+            print("------------------------------------Splitting Dataset with GMM and s=1------------------------------")
             for i in range(num_datasets):
                 datasets.append({
                     "observations": observations[datasets_indices[i]],
@@ -29,8 +30,11 @@ def split_dataset(observations, actions, rewards, next_observations, terminals, 
                     "next_observations": next_observations[datasets_indices[i]],
                     "terminals": terminals[datasets_indices[i]]
                 })
+            print(datasets)
             return datasets
         else:
+            print(
+                f"------------------------------------Splitting Dataset with GMM and s={s}------------------------------")
             # find the statistics of the GMM clusters
             means = np.zeros((num_datasets, d))
             covs = np.zeros((num_datasets, d, d))
@@ -53,16 +57,17 @@ def split_dataset(observations, actions, rewards, next_observations, terminals, 
                 dataset_indices = probs[:, dataset_idx] > threshold
                 np.random.shuffle(datasets)
                 datasets.append({
-                    "observations": observations[datasets_indices[i]],
-                    "actions": actions[datasets_indices[i]],
-                    "rewards": rewards[datasets_indices[i]],
-                    "next_observations": next_observations[datasets_indices[i]],
-                    "terminals": terminals[datasets_indices[i]]
+                    "observations": observations[dataset_indices],
+                    "actions": actions[dataset_indices],
+                    "rewards": rewards[dataset_indices],
+                    "next_observations": next_observations[dataset_indices],
+                    "terminals": terminals[dataset_indices]
                 })
 
 
     # split the dataset using bootstrap
     else:
+        print(f"------------------------------------Splitting Dataset Randomly and s={s}------------------------------")
         np.random.shuffle(observations)
         dataset_size = N // num_datasets
         for i in range(num_datasets):
@@ -97,7 +102,6 @@ if __name__ == "__main__":
     obs, y = make_blobs(n_samples=N, centers=num_datasets,
                            cluster_std=1.5, random_state=1)
 
-    print(obs)
 
     datasets = split_dataset(obs, y, num_datasets, True, s)
     obsGMM = []
