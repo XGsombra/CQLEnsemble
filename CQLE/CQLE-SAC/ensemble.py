@@ -1,13 +1,8 @@
+from torch import Tensor
+
 from agent import CQLSAC
 import torch
-import torch.optim as optim
-import torch.nn.functional as F
-import torch.nn as nn
-from torch.nn.utils import clip_grad_norm_
-from networks import Critic, Actor
 import numpy as np
-import math
-import copy
 
 class CQLEnsemble():
 
@@ -56,10 +51,15 @@ class CQLEnsemble():
 
         with torch.no_grad():
             if eval:
-                actions = [self.CQL_agents[i].actor_local.get_det_action(state).numpy() for i in range(self.num_agents)]
+                actions = Tensor(np.vstack([self.CQL_agents[i].actor_local.get_det_action(state).numpy() for i in range(self.num_agents)]))
             else:
-                actions = [self.CQL_agents[i].actor_local.get_action(state).numpy() for i in range(self.num_agents)]
-
+                actions = Tensor(np.vstack([self.CQL_agents[i].actor_local.get_action(state).numpy() for i in range(self.num_agents)]))
+        print(actions)
+        actions = actions.to(self.device)
+        q1s = np.array([[self.CQL_agents[i].critic1(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
+        q2s = np.array([[self.CQL_agents[i].critic2(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
+        actions = actions.cpu().detach().numpy()
+        print(q1s)
         return self.vote(actions, confidences)
 
     def vote(self, actions, confidences):

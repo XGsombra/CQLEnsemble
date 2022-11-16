@@ -30,7 +30,6 @@ def split_dataset(observations, actions, rewards, next_observations, terminals, 
                     "next_observations": next_observations[datasets_indices[i]],
                     "terminals": terminals[datasets_indices[i]]
                 })
-            print(datasets)
             return datasets
         else:
             print(

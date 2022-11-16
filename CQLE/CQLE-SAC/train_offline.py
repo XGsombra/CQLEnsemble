@@ -6,9 +6,7 @@ import torch
 import wandb
 import argparse
 import glob
-# from utils import save, collect_random
 import random
-from agent import CQLSAC
 from torch.utils.data import DataLoader, TensorDataset
 from dataset_splitter import split_dataset
 from ensemble import CQLEnsemble
@@ -112,7 +110,6 @@ def train(config):
     torch.manual_seed(config.seed)
 
     dataloaders, env = prep_dataloaders(config)
-
     # env.action_space.seed(config.seed)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
