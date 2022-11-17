@@ -8,7 +8,6 @@ from sklearn.datasets import make_blobs
 def split_dataset(observations, actions, rewards, next_observations, terminals, num_datasets=10, is_GMM=True, s=1):
 
     N, d = observations.shape
-    print(N, d)
     datasets = []
     datasets_indices = []
 

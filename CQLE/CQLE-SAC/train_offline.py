@@ -3,6 +3,8 @@ import d4rl
 import numpy as np
 from collections import deque
 import torch
+from torch import Tensor
+
 import wandb
 import argparse
 import glob
@@ -134,6 +136,15 @@ def train(config):
             is_GMM=config.is_GMM==1,
             s=config.s,
         )
+
+        # Calculate the mean and covariance matrix of each agent
+        for i in range(ensemble.num_agents):
+            dataset_size = len(dataloaders[i].dataset)
+            dataset_as_array = np.vstack([np.array(dataloaders[i].dataset[j][0]) for j in range(dataset_size)])
+            ensemble.means.append(np.mean(dataset_as_array, axis=0))
+            ensemble.covariances.append(np.cov(dataset_as_array.T))
+
+
 
         # wandb.watch(ensemble, log="gradients", log_freq=10)
         if config.log_video:

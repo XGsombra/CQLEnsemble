@@ -27,6 +27,8 @@ class CQLEnsemble():
         self.is_GMM = is_GMM
         self.s = s
         self.CQL_agents = []
+        self.means = []
+        self.covariances = []
         for i in range(self.num_agents):
             CQL_agent = CQLSAC(
                 state_size,
@@ -59,10 +61,9 @@ class CQLEnsemble():
         q1s = np.array([[self.CQL_agents[i].critic1(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q2s = np.array([[self.CQL_agents[i].critic2(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         actions = actions.cpu().detach().numpy()
-        print(q1s)
-        return self.vote(actions, confidences)
+        return self.vote(actions, confidences, q1s, q2s)
 
-    def vote(self, actions, confidences):
+    def vote(self, actions, confidences, q1s, q2s):
         # TODO: implement different voting strategies to get the action
         return actions[0]
 
