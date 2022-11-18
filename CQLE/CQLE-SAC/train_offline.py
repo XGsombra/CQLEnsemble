@@ -143,6 +143,8 @@ def train(config):
             dataset_as_array = np.vstack([np.array(dataloaders[i].dataset[j][0]) for j in range(dataset_size)])
             ensemble.means.append(np.mean(dataset_as_array, axis=0))
             ensemble.covariances.append(np.cov(dataset_as_array.T))
+        ensemble.means = np.array(ensemble.means)
+        ensemble.covariances = np.array(ensemble.covariances)
 
 
 

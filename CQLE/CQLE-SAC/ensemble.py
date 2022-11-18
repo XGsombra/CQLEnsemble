@@ -48,20 +48,32 @@ class CQLEnsemble():
 
         state = torch.from_numpy(state).float().to(self.device)
 
-        # TODO: implement the function to calculate each agent's confidence of the state
-        confidences = np.arange(1, self.num_agents)
-
         with torch.no_grad():
             if eval:
                 actions = Tensor(np.vstack([self.CQL_agents[i].actor_local.get_det_action(state).numpy() for i in range(self.num_agents)]))
             else:
                 actions = Tensor(np.vstack([self.CQL_agents[i].actor_local.get_action(state).numpy() for i in range(self.num_agents)]))
-        print(actions)
+
         actions = actions.to(self.device)
+
+        # get the q-values for each action according each agent
         q1s = np.array([[self.CQL_agents[i].critic1(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q2s = np.array([[self.CQL_agents[i].critic2(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
+
+        # convert actions to numpy array in cpu
         actions = actions.cpu().detach().numpy()
-        return self.vote(actions, confidences, q1s, q2s)
+        state = state.cpu().detach().numpy()
+
+        # calculate the confidence
+        d = state.shape[0]
+        dist = state[np.newaxis, np.newaxis, :] - self.means[:, np.newaxis, :]
+        distT = np.transpose(dist, axes=[0, 2, 1])
+        log_numerator = (-dist @ np.linalg.inv(self.covariances) @ distT / 2).reshape((self.num_agents,))
+        log_denominator = (np.linalg.det(self.covariances) + d * np.log(2 * np.pi)) / 2
+        log_confidences = log_numerator - log_denominator
+        print(log_confidences)
+
+        return self.vote(actions, log_confidences, q1s, q2s)
 
     def vote(self, actions, confidences, q1s, q2s):
         # TODO: implement different voting strategies to get the action
