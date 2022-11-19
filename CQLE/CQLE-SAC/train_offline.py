@@ -33,6 +33,7 @@ def get_config():
     parser.add_argument("--num_agents", type=int, default=5, help="")
     parser.add_argument("--is_GMM", type=int, default=0, help="")
     parser.add_argument("--s", type=float, default=1.0, help="")
+    parser.add_argument("--strategy", type=str, default="max", help="The strategy to vote")
     
     args = parser.parse_args()
     return args
@@ -135,6 +136,7 @@ def train(config):
             num_agents=config.num_agents,
             is_GMM=config.is_GMM==1,
             s=config.s,
+            strategy=config.strategy
         )
 
         # Calculate the mean and covariance matrix of each agent

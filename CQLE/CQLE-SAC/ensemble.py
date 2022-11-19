@@ -21,11 +21,13 @@ class CQLEnsemble():
             num_agents=5,
             is_GMM=False,
             s=1,
+            strategy="max"
     ):
         self.device = device
         self.num_agents = num_agents
         self.is_GMM = is_GMM
         self.s = s
+        self.strategy = strategy
         self.CQL_agents = []
         self.means = []
         self.covariances = []
@@ -59,6 +61,8 @@ class CQLEnsemble():
         # get the q-values for each action according each agent
         q1s = np.array([[self.CQL_agents[i].critic1(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q2s = np.array([[self.CQL_agents[i].critic2(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
+        q1s = q1s.reshape((self.num_agents, self.num_agents))
+        q2s = q2s.reshape((self.num_agents, self.num_agents))
 
         # convert actions to numpy array in cpu
         actions = actions.cpu().detach().numpy()
@@ -73,10 +77,13 @@ class CQLEnsemble():
         log_confidences = log_numerator - log_denominator
         print(log_confidences)
 
-        return self.vote(actions, log_confidences, q1s, q2s)
+        return self.vote(actions, log_confidences, q1s, q2s, self.strategy)
 
-    def vote(self, actions, confidences, q1s, q2s):
-        # TODO: implement different voting strategies to get the action
+    def vote(self, actions, confidences, q1s, q2s, strategy):
+        q = np.amin([q1s, q2s], axis=0)
+        q_sum_across_agents = np.sum(q, axis=1)
+        print(q, q_sum_across_agents)
+        exit()
         return actions[0]
 
     def learn(self, experiences):

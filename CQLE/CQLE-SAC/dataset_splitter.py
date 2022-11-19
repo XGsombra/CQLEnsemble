@@ -5,7 +5,16 @@ import seaborn as sns; sns.set()
 from sklearn.datasets import make_blobs
 
 
-def split_dataset(observations, actions, rewards, next_observations, terminals, num_datasets=10, is_GMM=True, s=1):
+def split_dataset(
+        observations,
+        actions,
+        rewards,
+        next_observations,
+        terminals,
+        num_datasets=10,
+        is_GMM=True,
+        s=1,
+        pca_n_component=3):
 
     N, d = observations.shape
     datasets = []
