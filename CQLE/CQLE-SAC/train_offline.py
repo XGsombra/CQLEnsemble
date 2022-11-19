@@ -4,7 +4,8 @@ import numpy as np
 from collections import deque
 import torch
 from torch import Tensor
-
+import time
+import matplotlib.pyplot as plt
 import wandb
 import argparse
 import glob
@@ -159,6 +160,8 @@ def train(config):
 
         eval_reward = evaluate(env, ensemble)
         wandb.log({"Test Reward": eval_reward, "Episode": 0, "Batches": batches}, step=batches)
+        time_in_episode = []
+        start_time = time.time()
         for i in range(1, config.episodes+1):
 
             dataset = reformat_dataloaders(dataloaders)
@@ -211,6 +214,10 @@ def train(config):
                 lagrange_alpha_loss = sum(total_lagrange_alpha_loss) / num_training_agents
                 lagrange_alpha = sum(total_lagrange_alpha) / num_training_agents
 
+            time_i = time.time() - start_time
+            time_in_episode.append(time_i)
+            print(time_in_episode)
+
             if i % config.eval_every == 0:
                 eval_reward = evaluate(env, ensemble)
                 wandb.log({"Test Reward": eval_reward, "Episode": i, "Batches": batches}, step=batches)
@@ -240,6 +247,11 @@ def train(config):
 
             # if i % config.save_every == 0:
             #     save(config, save_name="IQL", model=agent.actor_local, wandb=wandb, ep=0)
+        
+        plt.plot(time_in_episode)
+        plt.ylabel('train time in episode')
+        plt.xlabel('episode')
+        plt.savefig('train_time.png')
 
 if __name__ == "__main__":
     config = get_config()
