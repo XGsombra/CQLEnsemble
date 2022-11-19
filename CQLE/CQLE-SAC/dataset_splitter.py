@@ -33,13 +33,12 @@ def split_dataset(
         observations_principal = pca.transform(observations)
 
         # use GMM to do clustering on dimension-reduced states
-        gmm = GaussianMixture(n_components=num_datasets).fit(observations_principal)
+        gmm = GaussianMixture(n_components=num_datasets, max_iter=500, covariance_type="tied").fit(observations_principal)
         labels = gmm.predict(observations_principal)
 
         # classify each data point to a cluster
         for i in range(num_datasets):
             datasets_indices.append(labels == i)
-            print(len(observations[datasets_indices[i]]))
         # if s is 1, return the split done by GMM
         if s == 1:
             print("------------------------------------Splitting Dataset with GMM and s=1------------------------------")
@@ -82,22 +81,20 @@ def split_dataset(
                     "terminals": terminals[dataset_indices]
                 })
 
-        plot_pca_datasets = True
+        plot_pca_datasets = False
         obsGMM = []
         labels = []
         if plot_pca_datasets and num_datasets == 5:
             fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(15, 8))
             for i in range(num_datasets):
                 pca_obs = pca.transform(datasets[i]["observations"])
-                axs[i//3, i%3].scatter(pca_obs[:, 0], pca_obs[:, 1])
+                axs[i//3, i%3].scatter(pca_obs[:, 0], pca_obs[:, 1], s=1)
                 axs[i//3, i%3].set_xlim([-13, 13])
                 axs[i//3, i%3].set_ylim([-13, 13])
                 axs[i//3, i%3].set_title(f"{len(pca_obs)} data entries")
                 obsGMM.extend(pca_obs)
                 labels.extend([i] * pca_obs.shape[0])
-            # print(obsGMM)
-            # print(labels)
-            axs[1, 2].scatter(np.array(obsGMM)[:, 0], np.array(obsGMM)[:, 1], c=labels, s=5, cmap='viridis')
+            axs[1, 2].scatter(np.array(obsGMM)[:, 0], np.array(obsGMM)[:, 1], c=labels, s=1, cmap='viridis')
             axs[1, 2].set_title(f"{len(obsGMM)} data entries")
             plt.show()
 

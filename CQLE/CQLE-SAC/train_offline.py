@@ -33,7 +33,7 @@ def get_config():
     parser.add_argument("--num_agents", type=int, default=5, help="")
     parser.add_argument("--is_GMM", type=int, default=0, help="")
     parser.add_argument("--s", type=float, default=1.0, help="")
-    parser.add_argument("--strategy", type=str, default="max", help="The strategy to vote")
+    parser.add_argument("--strategy", type=str, default="autocratic", help="The strategy to vote")
     parser.add_argument("--pca_n", type=int, default=2, help="The strategy to vote")
     
     args = parser.parse_args()

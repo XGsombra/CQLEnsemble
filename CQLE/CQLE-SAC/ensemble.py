@@ -21,7 +21,7 @@ class CQLEnsemble():
             num_agents=5,
             is_GMM=False,
             s=1,
-            strategy="max",
+            strategy="autocratic",
             pca=None
     ):
         self.device = device
@@ -73,22 +73,32 @@ class CQLEnsemble():
         # calculate the confidence
         d = self.pca.n_components_
         pca_state = self.pca.transform(state[np.newaxis, :])
-        print(d)
         dist = pca_state[np.newaxis, ...] - self.means[:, np.newaxis, :]
         distT = np.transpose(dist, axes=[0, 2, 1])
         log_numerator = (-dist @ np.linalg.inv(self.covariances) @ distT / 2).reshape((self.num_agents,))
         log_denominator = (np.linalg.det(self.covariances) + d * np.log(2 * np.pi)) / 2
         confidences = np.exp(log_numerator - log_denominator)
         confidences = confidences / np.sum(confidences)
-        print(confidences)
-
         return self.vote(actions, confidences, q1s, q2s, self.strategy)
 
     def vote(self, actions, confidences, q1s, q2s, strategy):
+        if strategy == "autocratic":
+            return actions[np.argmax(confidences)]
+
         q = np.amin([q1s, q2s], axis=0)
-        q_sum_across_agents = np.sum(q, axis=1)
-        print(q, q_sum_across_agents)
-        exit()
+        q_mean_across_agents = np.mean(q, axis=1)
+
+        if strategy == "aristocratic":
+            # Only the agents with over-average confidence could vote
+            candidate_indices = q_mean_across_agents >= 1 / self.num_agents
+            candidate_qs = q_mean_across_agents[candidate_indices]
+            candidate_actions = actions[candidate_indices]
+            return candidate_actions[np.argmax(candidate_qs)]
+
+        if strategy == "meritocratic":
+            weights = q * confidences
+            return actions[np.argmax(weights)]
+
         return actions[0]
 
     def learn(self, experiences):
