@@ -34,6 +34,7 @@ def get_config():
     parser.add_argument("--is_GMM", type=int, default=0, help="")
     parser.add_argument("--s", type=float, default=1.0, help="")
     parser.add_argument("--strategy", type=str, default="max", help="The strategy to vote")
+    parser.add_argument("--pca_n", type=int, default=2, help="The strategy to vote")
     
     args = parser.parse_args()
     return args
@@ -51,7 +52,7 @@ def prep_dataloaders(config):
             else:
                 tensors[k] = torch.from_numpy(v).long()
 
-    datasets = split_dataset(
+    datasets, pca = split_dataset(
         tensors["observations"],
         tensors["actions"],
         tensors["rewards"][:, None],
@@ -59,7 +60,8 @@ def prep_dataloaders(config):
         tensors["terminals"][:, None],
         num_datasets=config.num_agents,
         is_GMM=config.is_GMM,
-        s=config.s
+        s=config.s,
+        pca_n_component=config.pca_n
     )
 
     dataloaders = []
@@ -73,7 +75,7 @@ def prep_dataloaders(config):
 
     print("------------------------------------dataloaders generated------------------------------")
 
-    return dataloaders, eval_env
+    return dataloaders, eval_env, pca
 
 def evaluate(env, policy, eval_runs=5): 
     """
@@ -112,7 +114,7 @@ def train(config):
     random.seed(config.seed)
     torch.manual_seed(config.seed)
 
-    dataloaders, env = prep_dataloaders(config)
+    dataloaders, env, pca = prep_dataloaders(config)
     # env.action_space.seed(config.seed)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -136,15 +138,16 @@ def train(config):
             num_agents=config.num_agents,
             is_GMM=config.is_GMM==1,
             s=config.s,
-            strategy=config.strategy
+            strategy=config.strategy,
+            pca=pca
         )
 
         # Calculate the mean and covariance matrix of each agent
         for i in range(ensemble.num_agents):
             dataset_size = len(dataloaders[i].dataset)
             dataset_as_array = np.vstack([np.array(dataloaders[i].dataset[j][0]) for j in range(dataset_size)])
-            ensemble.means.append(np.mean(dataset_as_array, axis=0))
-            ensemble.covariances.append(np.cov(dataset_as_array.T))
+            ensemble.means.append(np.mean(ensemble.pca.transform(dataset_as_array), axis=0))
+            ensemble.covariances.append(np.cov(ensemble.pca.transform(dataset_as_array).T))
         ensemble.means = np.array(ensemble.means)
         ensemble.covariances = np.array(ensemble.covariances)
 

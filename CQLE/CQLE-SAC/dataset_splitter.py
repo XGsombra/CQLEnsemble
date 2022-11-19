@@ -1,8 +1,10 @@
 import numpy as np
+import sklearn.decomposition
 from sklearn.mixture import GaussianMixture
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 from sklearn.datasets import make_blobs
+from sklearn.decomposition import PCA
 
 
 def split_dataset(
@@ -14,19 +16,30 @@ def split_dataset(
         num_datasets=10,
         is_GMM=True,
         s=1,
-        pca_n_component=3):
+        pca_n_component=2
+):
 
     N, d = observations.shape
     datasets = []
     datasets_indices = []
 
+    # use PCA to reduce the dimension of original state space
+    pca = PCA(n_components=pca_n_component)
+    pca.fit(observations)
+
     # split the dataset by GMM
     if is_GMM:
-        gmm = GaussianMixture(n_components=num_datasets).fit(observations)
-        labels = gmm.predict(observations)
+
+        observations_principal = pca.transform(observations)
+
+        # use GMM to do clustering on dimension-reduced states
+        gmm = GaussianMixture(n_components=num_datasets).fit(observations_principal)
+        labels = gmm.predict(observations_principal)
+
         # classify each data point to a cluster
         for i in range(num_datasets):
             datasets_indices.append(labels == i)
+            print(len(observations[datasets_indices[i]]))
         # if s is 1, return the split done by GMM
         if s == 1:
             print("------------------------------------Splitting Dataset with GMM and s=1------------------------------")
@@ -38,23 +51,21 @@ def split_dataset(
                     "next_observations": next_observations[datasets_indices[i]],
                     "terminals": terminals[datasets_indices[i]]
                 })
-            return datasets
         else:
-            print(
-                f"------------------------------------Splitting Dataset with GMM and s={s}------------------------------")
+            print(f"----------------------------------Splitting Dataset with GMM and s={s}------------------------------")
             # find the statistics of the GMM clusters
-            means = np.zeros((num_datasets, d))
-            covs = np.zeros((num_datasets, d, d))
+            means = np.zeros((num_datasets, pca_n_component))
+            covs = np.zeros((num_datasets, pca_n_component, pca_n_component))
             for i in range(num_datasets):
-                means[i] = np.average(observations[datasets_indices[i]], axis=0)
-                covs[i] = np.cov(observations[datasets_indices[i]].T) * s ** 2
+                means[i] = np.average(observations_principal[datasets_indices[i]], axis=0)
+                covs[i] = np.cov(observations_principal[datasets_indices[i]].T) * s ** 2
 
             # calculate the probability for each data point to be in cluster i
-            dist = (observations[:, :, np.newaxis]-means.T[np.newaxis, :, :])
+            dist = (observations_principal[:, :, np.newaxis]-means.T[np.newaxis, :, :])
             dist = np.transpose(dist, axes=[0, 2, 1])[:, :, np.newaxis, :]
             distT = np.transpose(dist, axes=[0, 1, 3, 2])
             nominator = np.exp(-dist @ np.linalg.inv(covs)[np.newaxis, :, :] @ distT / 2).reshape((N, num_datasets))
-            denominator = np.sqrt(np.linalg.det(covs)) * (2*np.pi)**(d/2)
+            denominator = np.sqrt(np.linalg.det(covs)) * (2*np.pi)**(pca_n_component/2)
             probs = nominator / denominator
             probs = probs / np.sum(probs, axis=1)[:, np.newaxis]
 
@@ -70,6 +81,25 @@ def split_dataset(
                     "next_observations": next_observations[dataset_indices],
                     "terminals": terminals[dataset_indices]
                 })
+
+        plot_pca_datasets = True
+        obsGMM = []
+        labels = []
+        if plot_pca_datasets and num_datasets == 5:
+            fig, axs = plt.subplots(nrows=2, ncols=3, figsize=(15, 8))
+            for i in range(num_datasets):
+                pca_obs = pca.transform(datasets[i]["observations"])
+                axs[i//3, i%3].scatter(pca_obs[:, 0], pca_obs[:, 1])
+                axs[i//3, i%3].set_xlim([-13, 13])
+                axs[i//3, i%3].set_ylim([-13, 13])
+                axs[i//3, i%3].set_title(f"{len(pca_obs)} data entries")
+                obsGMM.extend(pca_obs)
+                labels.extend([i] * pca_obs.shape[0])
+            # print(obsGMM)
+            # print(labels)
+            axs[1, 2].scatter(np.array(obsGMM)[:, 0], np.array(obsGMM)[:, 1], c=labels, s=5, cmap='viridis')
+            axs[1, 2].set_title(f"{len(obsGMM)} data entries")
+            plt.show()
 
 
     # split the dataset using bootstrap
@@ -97,7 +127,7 @@ def split_dataset(
                     "terminals": terminals[indices]
                 })
 
-    return datasets
+    return datasets, pca
 
 
 if __name__ == "__main__":

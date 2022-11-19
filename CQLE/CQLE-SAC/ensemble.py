@@ -21,13 +21,15 @@ class CQLEnsemble():
             num_agents=5,
             is_GMM=False,
             s=1,
-            strategy="max"
+            strategy="max",
+            pca=None
     ):
         self.device = device
         self.num_agents = num_agents
         self.is_GMM = is_GMM
         self.s = s
         self.strategy = strategy
+        self.pca = pca
         self.CQL_agents = []
         self.means = []
         self.covariances = []
@@ -69,15 +71,18 @@ class CQLEnsemble():
         state = state.cpu().detach().numpy()
 
         # calculate the confidence
-        d = state.shape[0]
-        dist = state[np.newaxis, np.newaxis, :] - self.means[:, np.newaxis, :]
+        d = self.pca.n_components_
+        pca_state = self.pca.transform(state[np.newaxis, :])
+        print(d)
+        dist = pca_state[np.newaxis, ...] - self.means[:, np.newaxis, :]
         distT = np.transpose(dist, axes=[0, 2, 1])
         log_numerator = (-dist @ np.linalg.inv(self.covariances) @ distT / 2).reshape((self.num_agents,))
         log_denominator = (np.linalg.det(self.covariances) + d * np.log(2 * np.pi)) / 2
-        log_confidences = log_numerator - log_denominator
-        print(log_confidences)
+        confidences = np.exp(log_numerator - log_denominator)
+        confidences = confidences / np.sum(confidences)
+        print(confidences)
 
-        return self.vote(actions, log_confidences, q1s, q2s, self.strategy)
+        return self.vote(actions, confidences, q1s, q2s, self.strategy)
 
     def vote(self, actions, confidences, q1s, q2s, strategy):
         q = np.amin([q1s, q2s], axis=0)
