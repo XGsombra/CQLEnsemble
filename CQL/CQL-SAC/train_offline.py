@@ -6,6 +6,7 @@ import torch
 import wandb
 import argparse
 import glob
+import time
 # from utils import save, collect_random
 import random
 from agent import CQLSAC
@@ -34,9 +35,7 @@ def get_config():
 
 def prep_dataloader(env_id="halfcheetah-medium-v2", batch_size=256, seed=1):
     env = gym.make(env_id).unwrapped
-    print(type(env))
     dataset = d4rl.qlearning_dataset(env)
-    print(dataset.keys())
     tensors = {}
     for k, v in dataset.items():
         if k in ["actions", "observations", "next_observations", "rewards", "terminals"]:
@@ -50,13 +49,13 @@ def prep_dataloader(env_id="halfcheetah-medium-v2", batch_size=256, seed=1):
                                tensors["rewards"][:, None],
                                tensors["next_observations"],
                                tensors["terminals"][:, None])
-    dataloader  = DataLoader(tensordata, batch_size=batch_size, shuffle=True)
+    dataloader = DataLoader(tensordata, batch_size=batch_size, shuffle=True)
 
     eval_env = gym.make(env_id)
     eval_env.seed(seed)
     return dataloader, eval_env
 
-def evaluate(env, policy, eval_runs=5): 
+def evaluate(env, policy, eval_runs=5):
     """
     Makes an evaluation run with the current policy
     """
@@ -91,7 +90,8 @@ def train(config):
     
     with wandb.init(project="CQL-offline", name=config.run_name, config=config):
         
-        agent = CQLSAC(state_size=env.observation_space.shape[0],
+        agent = CQLSAC(env=env,
+                        state_size=env.observation_space.shape[0],
                         action_size=env.action_space.shape[0],
                         tau=config.tau,
                         hidden_size=config.hidden_size,
@@ -121,7 +121,11 @@ def train(config):
                 batches += 1
 
             if i % config.eval_every == 0:
+                print(f"Started evaluation for episode {i}")
+                start_time = time.process_time()
                 eval_reward = evaluate(env, agent)
+                print(f"Evaluation time for episode {i} is {time.process_time() - start_time}")
+
                 wandb.log({"Test Reward": eval_reward, "Episode": i, "Batches": batches}, step=batches)
 
                 average10.append(eval_reward)

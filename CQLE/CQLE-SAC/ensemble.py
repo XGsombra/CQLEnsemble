@@ -76,8 +76,9 @@ class CQLEnsemble():
         dist = pca_state[np.newaxis, ...] - self.means[:, np.newaxis, :]
         distT = np.transpose(dist, axes=[0, 2, 1])
         log_numerator = (-dist @ np.linalg.inv(self.covariances) @ distT / 2).reshape((self.num_agents,))
-        log_denominator = (np.linalg.det(self.covariances) + d * np.log(2 * np.pi)) / 2
+        log_denominator = (np.log(np.linalg.det(self.covariances)) + d * np.log(2 * np.pi)) / 2
         confidences = np.exp(log_numerator - log_denominator)
+        # print(log_numerator, log_denominator, confidences)
         confidences = confidences / np.sum(confidences)
         return self.vote(actions, confidences, q1s, q2s, self.strategy)
 
@@ -90,13 +91,13 @@ class CQLEnsemble():
 
         if strategy == "aristocratic":
             # Only the agents with over-average confidence could vote
-            candidate_indices = q_mean_across_agents >= 1 / self.num_agents
+            candidate_indices = q_mean_across_agents >= np.mean(q_mean_across_agents)
             candidate_qs = q_mean_across_agents[candidate_indices]
             candidate_actions = actions[candidate_indices]
             return candidate_actions[np.argmax(candidate_qs)]
 
         if strategy == "meritocratic":
-            weights = q * confidences
+            weights = q_mean_across_agents * confidences
             return actions[np.argmax(weights)]
 
         return actions[0]

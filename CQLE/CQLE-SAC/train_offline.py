@@ -5,7 +5,7 @@ from collections import deque
 import torch
 from torch import Tensor
 import time
-import matplotlib.pyplot as plt
+
 import wandb
 import argparse
 import glob
@@ -18,7 +18,7 @@ def get_config():
     parser = argparse.ArgumentParser(description='RL')
     parser.add_argument("--run_name", type=str, default="CQL", help="Run name, default: CQL")
     parser.add_argument("--env", type=str, default="halfcheetah-medium-v2", help="Gym environment name, default: Pendulum-v0")
-    parser.add_argument("--episodes", type=int, default=100, help="Number of episodes, default: 100")
+    parser.add_argument("--episodes", type=int, default=40, help="Number of episodes, default: 100")
     parser.add_argument("--seed", type=int, default=1, help="Seed, default: 1")
     parser.add_argument("--log_video", type=int, default=0, help="Log agent behaviour to wanbd when set to 1, default: 0")
     parser.add_argument("--save_every", type=int, default=100, help="Saves the network every x epochs, default: 25")
@@ -78,12 +78,14 @@ def prep_dataloaders(config):
 
     return dataloaders, eval_env, pca
 
-def evaluate(env, policy, eval_runs=5): 
+def evaluate(env, policy, eval_runs=5):
     """
     Makes an evaluation run with the current policy
     """
     reward_batch = []
     for i in range(eval_runs):
+
+        env.seed(i)
         state = env.reset()
 
         rewards = 0
@@ -116,7 +118,7 @@ def train(config):
     torch.manual_seed(config.seed)
 
     dataloaders, env, pca = prep_dataloaders(config)
-    # env.action_space.seed(config.seed)
+    env.seed(config.seed)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
@@ -160,8 +162,6 @@ def train(config):
 
         eval_reward = evaluate(env, ensemble)
         wandb.log({"Test Reward": eval_reward, "Episode": 0, "Batches": batches}, step=batches)
-        time_in_episode = []
-        start_time = time.time()
         for i in range(1, config.episodes+1):
 
             dataset = reformat_dataloaders(dataloaders)
@@ -214,12 +214,11 @@ def train(config):
                 lagrange_alpha_loss = sum(total_lagrange_alpha_loss) / num_training_agents
                 lagrange_alpha = sum(total_lagrange_alpha) / num_training_agents
 
-            time_i = time.time() - start_time
-            time_in_episode.append(time_i)
-            print(time_in_episode)
-
             if i % config.eval_every == 0:
+                print(f"Started evaluation for episode {i}")
+                start_time = time.process_time()
                 eval_reward = evaluate(env, ensemble)
+                print(f"Evaluation time for episode {i} is {time.process_time()-start_time}")
                 wandb.log({"Test Reward": eval_reward, "Episode": i, "Batches": batches}, step=batches)
 
                 average10.append(eval_reward)
@@ -247,11 +246,6 @@ def train(config):
 
             # if i % config.save_every == 0:
             #     save(config, save_name="IQL", model=agent.actor_local, wandb=wandb, ep=0)
-        
-        plt.plot(time_in_episode)
-        plt.ylabel('train time in episode')
-        plt.xlabel('episode')
-        plt.savefig('train_time.png')
 
 if __name__ == "__main__":
     config = get_config()
