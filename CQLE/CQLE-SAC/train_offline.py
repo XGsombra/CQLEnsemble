@@ -14,13 +14,16 @@ from torch.utils.data import DataLoader, TensorDataset
 from dataset_splitter import split_dataset
 from ensemble import CQLEnsemble
 
+
 def get_config():
     parser = argparse.ArgumentParser(description='RL')
     parser.add_argument("--run_name", type=str, default="CQL", help="Run name, default: CQL")
-    parser.add_argument("--env", type=str, default="halfcheetah-medium-v2", help="Gym environment name, default: Pendulum-v0")
+    parser.add_argument("--env", type=str, default="halfcheetah-medium-v2",
+                        help="Gym environment name, default: Pendulum-v0")
     parser.add_argument("--episodes", type=int, default=100, help="Number of episodes, default: 100")
     parser.add_argument("--seed", type=int, default=1, help="Seed, default: 1")
-    parser.add_argument("--log_video", type=int, default=0, help="Log agent behaviour to wanbd when set to 1, default: 0")
+    parser.add_argument("--log_video", type=int, default=0,
+                        help="Log agent behaviour to wanbd when set to 1, default: 0")
     parser.add_argument("--save_every", type=int, default=100, help="Saves the network every x epochs, default: 25")
     parser.add_argument("--batch_size", type=int, default=512, help="Batch size, default: 256")
     parser.add_argument("--hidden_size", type=int, default=256, help="")
@@ -36,9 +39,10 @@ def get_config():
     parser.add_argument("--s", type=float, default=1.0, help="")
     parser.add_argument("--strategy", type=str, default="autocratic", help="The strategy to vote")
     parser.add_argument("--pca_n", type=int, default=2, help="The strategy to vote")
-    
+
     args = parser.parse_args()
     return args
+
 
 def prep_dataloaders(config):
     env = gym.make(config.env)
@@ -79,6 +83,7 @@ def prep_dataloaders(config):
 
     return dataloaders, eval_env, pca
 
+
 def evaluate(env, policy, eval_runs=5):
     """
     Makes an evaluation run with the current policy
@@ -100,6 +105,7 @@ def evaluate(env, policy, eval_runs=5):
         reward_batch.append(rewards)
     return np.mean(reward_batch)
 
+
 def reformat_dataloaders(dataloaders):
     # [(batch_idx, [batched experiences for all agents])]
     num_agents = len(dataloaders)
@@ -113,21 +119,28 @@ def reformat_dataloaders(dataloaders):
         new_dataset.append((i, batch_i))
     return new_dataset
 
+
 def train(config):
     np.random.seed(config.seed)
     random.seed(config.seed)
     torch.manual_seed(config.seed)
 
+    dataset_preparation_start_time = time.time()
     dataloaders, env, pca = prep_dataloaders(config)
+    dataloaders_preparation_time = time.time() - dataset_preparation_start_time
+
     env.seed(config.seed)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    
+
+    # Initialize some statistics
     batches = 0
     average10 = deque(maxlen=10)
-    
+    training_times = []
+    evaluation_times = []
+
     with wandb.init(project="CQL-ensemble-offline", name=config.run_name, config=config):
-        
+
         ensemble = CQLEnsemble(
             state_size=env.observation_space.shape[0],
             action_size=env.action_space.shape[0],
@@ -140,7 +153,7 @@ def train(config):
             target_action_gap=config.target_action_gap,
             device=device,
             num_agents=config.num_agents,
-            is_GMM=config.is_GMM==1,
+            is_GMM=config.is_GMM == 1,
             s=config.s,
             strategy=config.strategy,
             pca=pca
@@ -155,16 +168,16 @@ def train(config):
         ensemble.means = np.array(ensemble.means)
         ensemble.covariances = np.array(ensemble.covariances)
 
-
-
         # wandb.watch(ensemble, log="gradients", log_freq=10)
         if config.log_video:
-            env = gym.wrappers.Monitor(env, './video', video_callable=lambda x: x%10==0, force=True)
+            env = gym.wrappers.Monitor(env, './video', video_callable=lambda x: x % 10 == 0, force=True)
 
         eval_reward = evaluate(env, ensemble)
         wandb.log({"Test Reward": eval_reward, "Episode": 0, "Batches": batches}, step=batches)
+        for agent_id in range(ensemble.num_agents):
+            wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})
 
-        for i in range(1, config.episodes+1):
+        for i in range(1, config.episodes + 1):
 
             dataset = reformat_dataloaders(dataloaders)
 
@@ -181,6 +194,7 @@ def train(config):
 
                 num_training_agents = 0
 
+                training_time_start = time.time()
                 for agent_id in range(ensemble.num_agents):
                     experience = experiences[agent_id]
                     if len(experience) == 0:
@@ -193,7 +207,8 @@ def train(config):
                     next_states = next_states.to(device)
 
                     dones = dones.to(device)
-                    policy_loss, alpha_loss, bellmann_error1, bellmann_error2, cql1_loss, cql2_loss, current_alpha, lagrange_alpha_loss, lagrange_alpha = ensemble.CQL_agents[agent_id].learn((states, actions, rewards, next_states, dones))
+                    policy_loss, alpha_loss, bellmann_error1, bellmann_error2, cql1_loss, cql2_loss, current_alpha, lagrange_alpha_loss, lagrange_alpha = \
+                    ensemble.CQL_agents[agent_id].learn((states, actions, rewards, next_states, dones))
                     batches += 1
 
                     total_policy_loss.append(policy_loss)
@@ -206,6 +221,7 @@ def train(config):
                     total_lagrange_alpha_loss.append(lagrange_alpha_loss)
                     total_lagrange_alpha.append(lagrange_alpha)
 
+                training_times.append(time.time() - training_time_start)
                 policy_loss = sum(total_policy_loss) / num_training_agents
                 alpha_loss = sum(total_alpha_loss) / num_training_agents
                 bellmann_error1 = sum(total_bellmann_error1) / num_training_agents
@@ -220,36 +236,41 @@ def train(config):
                 print(f"Started evaluation for episode {i}")
                 start_time = time.process_time()
                 eval_reward = evaluate(env, ensemble)
+                evaluation_times.append(time.process_time() - start_time)
                 for agent_id in range(ensemble.num_agents):
                     wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})
-                print(f"Evaluation time for episode {i} is {time.process_time()-start_time}")
                 wandb.log({"Test Reward": eval_reward, "Episode": i, "Batches": batches}, step=batches)
 
                 average10.append(eval_reward)
-                print("Episode: {} | Reward: {} | Polciy Loss: {} | Batches: {}".format(i, eval_reward, policy_loss, batches,))
-            
-            wandb.log({
-                       "Average10": np.mean(average10),
-                       "Policy Loss": policy_loss,
-                       "Alpha Loss": alpha_loss,
-                       "Lagrange Alpha Loss": lagrange_alpha_loss,
-                       "CQL1 Loss": cql1_loss,
-                       "CQL2 Loss": cql2_loss,
-                       "Bellman error 1": bellmann_error1,
-                       "Bellman error 2": bellmann_error2,
-                       "Alpha": current_alpha,
-                       "Lagrange Alpha": lagrange_alpha,
-                       "Batches": batches,
-                       "Episode": i})
+                print("Episode: {} | Reward: {} | Polciy Loss: {} | Batches: {}".format(i, eval_reward, policy_loss,
+                                                                                        batches, ))
 
-            if (i %10 == 0) and config.log_video:
+            wandb.log({
+                "Average10": np.mean(average10),
+                "Policy Loss": policy_loss,
+                "Alpha Loss": alpha_loss,
+                "Lagrange Alpha Loss": lagrange_alpha_loss,
+                "CQL1 Loss": cql1_loss,
+                "CQL2 Loss": cql2_loss,
+                "Bellman error 1": bellmann_error1,
+                "Bellman error 2": bellmann_error2,
+                "Alpha": current_alpha,
+                "Lagrange Alpha": lagrange_alpha,
+                "Batches": batches,
+                "Episode": i,
+                "Training time": training_times[-1],
+                "Evaluation time": evaluation_times[-1]},)
+
+            if (i % 10 == 0) and config.log_video:
                 mp4list = glob.glob('video/*.mp4')
                 if len(mp4list) > 1:
                     mp4 = mp4list[-2]
-                    wandb.log({"gameplays": wandb.Video(mp4, caption='episode: '+str(i-10), fps=4, format="gif"), "Episode": i})
+                    wandb.log({"gameplays": wandb.Video(mp4, caption='episode: ' + str(i - 10), fps=4, format="gif"),
+                               "Episode": i})
 
             # if i % config.save_every == 0:
             #     save(config, save_name="IQL", model=agent.actor_local, wandb=wandb, ep=0)
+    print(f"dataloaders preparation time is {dataloaders_preparation_time}")
 
 if __name__ == "__main__":
     config = get_config()

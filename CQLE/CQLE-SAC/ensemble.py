@@ -4,6 +4,31 @@ from agent import CQLSAC
 import torch
 import numpy as np
 
+
+def vote(actions, confidences, qs, strategy):
+
+    if strategy == "autocratic":
+        # The agent with the max confidence will make the decision
+        return actions[np.argmax(confidences)]
+
+    q_mean_across_agents = np.mean(qs, axis=1)
+
+    if strategy == "aristocratic":
+        # Only the agents with over-average confidence could vote
+        candidate_indices = q_mean_across_agents > np.mean(q_mean_across_agents)
+        candidate_qs = q_mean_across_agents[candidate_indices]
+        candidate_actions = actions[candidate_indices]
+        return candidate_actions[np.argmax(candidate_qs)]
+
+    if strategy == "meritocratic":
+        # uses the weighed sum of the actions proposed by each agent
+        weights = q_mean_across_agents * confidences
+        weights = weights / np.sum(weights)
+        return np.sum(actions * weights[:, np.newaxis], axis=0)
+
+    return actions[0]
+
+
 class CQLEnsemble():
 
     def __init__(
@@ -25,6 +50,7 @@ class CQLEnsemble():
             pca=None,
             action_sample_num=1000
     ):
+        # Ensemble Attributes
         self.device = device
         self.num_agents = num_agents
         self.is_GMM = is_GMM
@@ -35,6 +61,8 @@ class CQLEnsemble():
         self.means = []
         self.covariances = []
         self.action_sample_num = action_sample_num
+
+        # CQL Agents
         for i in range(self.num_agents):
             CQL_agent = CQLSAC(
                 state_size,
@@ -51,9 +79,7 @@ class CQLEnsemble():
             self.CQL_agents.append(CQL_agent)
 
     def get_action(self, state, eval=False):
-
         state = torch.from_numpy(state).float().to(self.device)
-
         with torch.no_grad():
             if eval:
                 actions = Tensor(np.vstack([self.CQL_agents[i].actor_local.get_det_action(state).numpy() for i in range(self.num_agents)]))
@@ -63,6 +89,7 @@ class CQLEnsemble():
         actions = actions.to(self.device)
 
         # get the q-value for each action according each agent (double q trick applied)
+        q1s = Tensor([[self.CQL_agents[i].critic1(state, action) for i in range(self.num_agents)] for action in actions])
         q1s = np.array([[self.CQL_agents[i].critic1(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q2s = np.array([[self.CQL_agents[i].critic2(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q1s = q1s.reshape((self.num_agents, self.num_agents))
@@ -78,7 +105,6 @@ class CQLEnsemble():
         qs_means = np.mean(qs_samples, axis=0)
         qs_stds = np.std(qs_samples, axis=0)
         qs_min_standardized = (qs_min - qs_means) / qs_stds
-        print(qs_min_standardized)
 
 
         # convert actions to numpy array in cpu
@@ -95,29 +121,7 @@ class CQLEnsemble():
         confidences = np.exp(log_numerator - log_denominator)
         confidences = confidences / np.sum(confidences)
 
-        return self.vote(actions, confidences, qs_min_standardized, self.strategy)
-
-    def vote(self, actions, confidences, qs, strategy):
-        if strategy == "autocratic":
-            # The agent with the max confidence will make the decision
-            return actions[np.argmax(confidences)]
-
-        q_mean_across_agents = np.mean(qs, axis=1)
-
-        if strategy == "aristocratic":
-            # Only the agents with over-average confidence could vote
-            candidate_indices = q_mean_across_agents >= np.mean(q_mean_across_agents)
-            candidate_qs = q_mean_across_agents[candidate_indices]
-            candidate_actions = actions[candidate_indices]
-            return candidate_actions[np.argmax(candidate_qs)]
-
-        if strategy == "meritocratic":
-            # uses the weighed sum of the actions proposed by each agent
-            weights = q_mean_across_agents * confidences
-            weights = weights / np.sum(weights)
-            return np.sum(actions * weights[:, np.newaxis], axis=0)
-
-        return actions[0]
+        return vote(actions, confidences, qs_min_standardized, self.strategy)
 
     def learn(self, experiences):
         for i in range(self.num_agents):
