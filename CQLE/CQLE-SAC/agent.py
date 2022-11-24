@@ -61,7 +61,7 @@ class CQLSAC(nn.Module):
         # Actor Network 
 
         self.actor_local = Actor(state_size, action_size, hidden_size).to(device)
-        self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=learning_rate)     
+        self.actor_optimizer = optim.Adam(self.actor_local.parameters(), lr=learning_rate/3)     
         
         # Critic Network (w/ Target Network)
 
@@ -137,7 +137,7 @@ class CQLSAC(nn.Module):
         self.actor_optimizer.step()
         
         # Compute alpha loss
-        alpha_loss = - (self.log_alpha.exp() * (log_pis.cpu() + self.target_entropy).detach().cpu()).mean()
+        alpha_loss = - (self.log_alpha * (log_pis.cpu() + self.target_entropy).detach().cpu()).mean()
         self.alpha_optimizer.zero_grad()
         alpha_loss.backward()
         self.alpha_optimizer.step()
