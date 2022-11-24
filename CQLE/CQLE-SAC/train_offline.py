@@ -18,7 +18,7 @@ def get_config():
     parser = argparse.ArgumentParser(description='RL')
     parser.add_argument("--run_name", type=str, default="CQL", help="Run name, default: CQL")
     parser.add_argument("--env", type=str, default="halfcheetah-medium-v2", help="Gym environment name, default: Pendulum-v0")
-    parser.add_argument("--episodes", type=int, default=40, help="Number of episodes, default: 100")
+    parser.add_argument("--episodes", type=int, default=100, help="Number of episodes, default: 100")
     parser.add_argument("--seed", type=int, default=1, help="Seed, default: 1")
     parser.add_argument("--log_video", type=int, default=0, help="Log agent behaviour to wanbd when set to 1, default: 0")
     parser.add_argument("--save_every", type=int, default=100, help="Saves the network every x epochs, default: 25")
@@ -162,6 +162,9 @@ def train(config):
 
         eval_reward = evaluate(env, ensemble)
         wandb.log({"Test Reward": eval_reward, "Episode": 0, "Batches": batches}, step=batches)
+        for agent_id in range(ensemble.num_agents):
+            wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})
+
         for i in range(1, config.episodes+1):
 
             dataset = reformat_dataloaders(dataloaders)

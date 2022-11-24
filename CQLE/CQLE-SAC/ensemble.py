@@ -96,9 +96,11 @@ class CQLEnsemble():
             candidate_actions = actions[candidate_indices]
             return candidate_actions[np.argmax(candidate_qs)]
 
-        if strategy == "meritocratic":
+        if strategy == "democratic":
+            # uses the weighed sum of the actions proposed by each agent
             weights = q_mean_across_agents * confidences
-            return actions[np.argmax(weights)]
+            weights = weights / np.sum(weights)
+            return np.sum(actions * weights[:, np.newaxis], axis=0)
 
         return actions[0]
 
