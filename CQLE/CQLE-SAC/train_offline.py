@@ -151,7 +151,9 @@ def train(config):
     training_times = []
     evaluation_times = []
 
-    with wandb.init(project="CQL-ensemble-offline", name=config.run_name, config=config):
+    run_name = f"{config.strategy}-{'gmm' if config.is_GMM else 'rnd'}-{config.num_agents}-agents-s-{config.s}"
+
+    with wandb.init(project="CQL-ensemble-offline-halfcheetah", name=run_name, config=config):
 
         ensemble = CQLEnsemble(
             state_size=env.observation_space.shape[0],
