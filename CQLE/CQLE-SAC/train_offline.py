@@ -84,7 +84,7 @@ def prep_dataloaders(config):
     return dataloaders, eval_env, pca
 
 
-def evaluate(env, policy, eval_runs=5):
+def evaluate(env, policy, eval_runs=5, is_ensemble=False):
     """
     Makes an evaluation run with the current policy
     """
@@ -93,6 +93,18 @@ def evaluate(env, policy, eval_runs=5):
 
         env.seed(i)
         state = env.reset()
+
+        if is_ensemble:
+            # standardize the q-value distributions of each agent according to the mean and std of sample q-values
+            action_dim = env.action_space.shape[0]
+            state = Tensor(state).to(policy.device)
+            action_samples = (torch.rand((policy.action_sample_num, action_dim)) * 2 - 1).to(policy.device)
+            q1s_samples = np.array([[policy.CQL_agents[i].critic1(state, action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
+            q2s_samples = np.array([[policy.CQL_agents[i].critic2(state, action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
+            qs_samples = np.amin([q1s_samples, q2s_samples], axis=0)
+            policy.qs_sample_means = np.mean(qs_samples, axis=0)
+            policy.qs_sample_stds = np.std(qs_samples, axis=0)
+            state = state.cpu().detach().numpy()
 
         rewards = 0
         while True:
@@ -160,6 +172,7 @@ def train(config):
         )
 
         # Calculate the mean and covariance matrix of each agent
+        print("--------------------------started to calculate means and variances------------------------------")
         for i in range(ensemble.num_agents):
             dataset_size = len(dataloaders[i].dataset)
             dataset_as_array = np.vstack([np.array(dataloaders[i].dataset[j][0]) for j in range(dataset_size)])
@@ -167,15 +180,18 @@ def train(config):
             ensemble.covariances.append(np.cov(ensemble.pca.transform(dataset_as_array).T))
         ensemble.means = np.array(ensemble.means)
         ensemble.covariances = np.array(ensemble.covariances)
+        print("------------------------finished calculating means and variances------------------------------")
 
         # wandb.watch(ensemble, log="gradients", log_freq=10)
         if config.log_video:
             env = gym.wrappers.Monitor(env, './video', video_callable=lambda x: x % 10 == 0, force=True)
 
-        eval_reward = evaluate(env, ensemble)
+        print("--------------------------started to evaluate the untrained model------------------------------")
+        eval_reward = evaluate(env, ensemble, is_ensemble=True)
         wandb.log({"Test Reward": eval_reward, "Episode": 0, "Batches": batches}, step=batches)
         for agent_id in range(ensemble.num_agents):
             wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})
+        print("--------------------------finished evaluating the untrained model------------------------------")
 
         for i in range(1, config.episodes + 1):
 
@@ -235,7 +251,7 @@ def train(config):
             if i % config.eval_every == 0:
                 print(f"Started evaluation for episode {i}")
                 start_time = time.process_time()
-                eval_reward = evaluate(env, ensemble)
+                eval_reward = evaluate(env, ensemble, is_ensemble=True)
                 evaluation_times.append(time.process_time() - start_time)
                 for agent_id in range(ensemble.num_agents):
                     wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})

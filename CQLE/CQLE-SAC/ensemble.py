@@ -61,6 +61,8 @@ class CQLEnsemble():
         self.means = []
         self.covariances = []
         self.action_sample_num = action_sample_num
+        self.qs_sample_means = None
+        self.qs_sample_stds = None
 
         # CQL Agents
         for i in range(self.num_agents):
@@ -89,22 +91,12 @@ class CQLEnsemble():
         actions = actions.to(self.device)
 
         # get the q-value for each action according each agent (double q trick applied)
-        q1s = Tensor([[self.CQL_agents[i].critic1(state, action) for i in range(self.num_agents)] for action in actions])
         q1s = np.array([[self.CQL_agents[i].critic1(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q2s = np.array([[self.CQL_agents[i].critic2(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q1s = q1s.reshape((self.num_agents, self.num_agents))
         q2s = q2s.reshape((self.num_agents, self.num_agents))
         qs_min = np.amin([q1s, q2s], axis=0)
-
-        # standardize the q-value distributions of each agent according to the mean and std of sample q-values
-        action_dim = actions.size()[1]
-        action_samples = (torch.rand((self.action_sample_num, action_dim)) * 2 - 1).to(self.device)
-        q1s_samples = np.array([[self.CQL_agents[i].critic1(state, action_sample).cpu().detach().numpy() for i in range(self.num_agents)] for action_sample in action_samples])
-        q2s_samples = np.array([[self.CQL_agents[i].critic2(state, action_sample).cpu().detach().numpy() for i in range(self.num_agents)] for action_sample in action_samples])
-        qs_samples = np.amin([q1s_samples, q2s_samples], axis=0)
-        qs_means = np.mean(qs_samples, axis=0)
-        qs_stds = np.std(qs_samples, axis=0)
-        qs_min_standardized = (qs_min - qs_means) / qs_stds
+        qs_min_standardized = (qs_min - self.qs_sample_means) / self.qs_sample_stds
 
 
         # convert actions to numpy array in cpu
