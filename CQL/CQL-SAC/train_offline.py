@@ -61,6 +61,8 @@ def evaluate(env, policy, eval_runs=5):
     """
     reward_batch = []
     for i in range(eval_runs):
+
+        env.seed(i)
         state = env.reset()
 
         rewards = 0

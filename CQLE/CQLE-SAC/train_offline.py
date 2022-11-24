@@ -162,8 +162,6 @@ def train(config):
 
         eval_reward = evaluate(env, ensemble)
         wandb.log({"Test Reward": eval_reward, "Episode": 0, "Batches": batches}, step=batches)
-        for agent_id in range(ensemble.num_agents):
-            wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})
 
         for i in range(1, config.episodes+1):
 
@@ -221,6 +219,8 @@ def train(config):
                 print(f"Started evaluation for episode {i}")
                 start_time = time.process_time()
                 eval_reward = evaluate(env, ensemble)
+                for agent_id in range(ensemble.num_agents):
+                    wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})
                 print(f"Evaluation time for episode {i} is {time.process_time()-start_time}")
                 wandb.log({"Test Reward": eval_reward, "Episode": i, "Batches": batches}, step=batches)
 
