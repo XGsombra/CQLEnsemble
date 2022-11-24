@@ -67,6 +67,7 @@ def prep_dataloaders(config):
 
     dataloaders = []
     for i in range(config.num_agents):
+        print(f"Dataset {i} has {len(datasets[i]['observations'])} entries.")
         tensordata = TensorDataset(datasets[i]["observations"],
                                    datasets[i]["actions"],
                                    datasets[i]["rewards"],

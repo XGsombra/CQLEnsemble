@@ -22,7 +22,8 @@ class CQLEnsemble():
             is_GMM=False,
             s=1,
             strategy="autocratic",
-            pca=None
+            pca=None,
+            action_sample_num=1000
     ):
         self.device = device
         self.num_agents = num_agents
@@ -33,6 +34,7 @@ class CQLEnsemble():
         self.CQL_agents = []
         self.means = []
         self.covariances = []
+        self.action_sample_num = action_sample_num
         for i in range(self.num_agents):
             CQL_agent = CQLSAC(
                 state_size,
@@ -60,17 +62,30 @@ class CQLEnsemble():
 
         actions = actions.to(self.device)
 
-        # get the q-values for each action according each agent
+        # get the q-value for each action according each agent (double q trick applied)
         q1s = np.array([[self.CQL_agents[i].critic1(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q2s = np.array([[self.CQL_agents[i].critic2(state, action).cpu().detach().numpy() for i in range(self.num_agents)] for action in actions])
         q1s = q1s.reshape((self.num_agents, self.num_agents))
         q2s = q2s.reshape((self.num_agents, self.num_agents))
+        qs_min = np.amin([q1s, q2s], axis=0)
+
+        # standardize the q-value distributions of each agent according to the mean and std of sample q-values
+        action_dim = actions.size()[1]
+        action_samples = (torch.rand((self.action_sample_num, action_dim)) * 2 - 1).to(self.device)
+        q1s_samples = np.array([[self.CQL_agents[i].critic1(state, action_sample).cpu().detach().numpy() for i in range(self.num_agents)] for action_sample in action_samples])
+        q2s_samples = np.array([[self.CQL_agents[i].critic2(state, action_sample).cpu().detach().numpy() for i in range(self.num_agents)] for action_sample in action_samples])
+        qs_samples = np.amin([q1s_samples, q2s_samples], axis=0)
+        qs_means = np.mean(qs_samples, axis=0)
+        qs_stds = np.std(qs_samples, axis=0)
+        qs_min_standardized = (qs_min - qs_means) / qs_stds
+        print(qs_min_standardized)
+
 
         # convert actions to numpy array in cpu
         actions = actions.cpu().detach().numpy()
         state = state.cpu().detach().numpy()
 
-        # calculate the confidence
+        # calculate the confidence according to the CDF of Gaussian distribution
         d = self.pca.n_components_
         pca_state = self.pca.transform(state[np.newaxis, :])
         dist = pca_state[np.newaxis, ...] - self.means[:, np.newaxis, :]
@@ -78,16 +93,16 @@ class CQLEnsemble():
         log_numerator = (-dist @ np.linalg.inv(self.covariances) @ distT / 2).reshape((self.num_agents,))
         log_denominator = (np.log(np.linalg.det(self.covariances)) + d * np.log(2 * np.pi)) / 2
         confidences = np.exp(log_numerator - log_denominator)
-        # print(log_numerator, log_denominator, confidences)
         confidences = confidences / np.sum(confidences)
-        return self.vote(actions, confidences, q1s, q2s, self.strategy)
 
-    def vote(self, actions, confidences, q1s, q2s, strategy):
+        return self.vote(actions, confidences, qs_min_standardized, self.strategy)
+
+    def vote(self, actions, confidences, qs, strategy):
         if strategy == "autocratic":
+            # The agent with the max confidence will make the decision
             return actions[np.argmax(confidences)]
 
-        q = np.amin([q1s, q2s], axis=0)
-        q_mean_across_agents = np.mean(q, axis=1)
+        q_mean_across_agents = np.mean(qs, axis=1)
 
         if strategy == "aristocratic":
             # Only the agents with over-average confidence could vote
@@ -96,7 +111,7 @@ class CQLEnsemble():
             candidate_actions = actions[candidate_indices]
             return candidate_actions[np.argmax(candidate_qs)]
 
-        if strategy == "democratic":
+        if strategy == "meritocratic":
             # uses the weighed sum of the actions proposed by each agent
             weights = q_mean_across_agents * confidences
             weights = weights / np.sum(weights)
