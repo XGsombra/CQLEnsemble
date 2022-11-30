@@ -48,7 +48,8 @@ class CQLEnsemble():
             s=1,
             strategy="autocratic",
             pca=None,
-            action_sample_num=1000
+            action_sample_num=1000,
+            standardize_q=True
     ):
         # Ensemble Attributes
         self.device = device
@@ -57,6 +58,7 @@ class CQLEnsemble():
         self.s = s
         self.strategy = strategy
         self.pca = pca
+        self.standardize_q = standardize_q
         self.CQL_agents = []
         self.means = []
         self.covariances = []
@@ -96,7 +98,8 @@ class CQLEnsemble():
         q1s = q1s.reshape((self.num_agents, self.num_agents))
         q2s = q2s.reshape((self.num_agents, self.num_agents))
         qs_min = np.amin([q1s, q2s], axis=0)
-        qs_min_standardized = (qs_min - self.qs_sample_means) / self.qs_sample_stds
+        if self.standardize_q:
+            qs_min = (qs_min - self.qs_sample_means) / self.qs_sample_stds
 
 
         # convert actions to numpy array in cpu
@@ -113,7 +116,7 @@ class CQLEnsemble():
         confidences = np.exp(log_numerator - log_denominator)
         confidences = confidences / np.sum(confidences)
 
-        return vote(actions, confidences, qs_min_standardized, self.strategy)
+        return vote(actions, confidences, qs_min, self.strategy)
 
     def learn(self, experiences):
         for i in range(self.num_agents):

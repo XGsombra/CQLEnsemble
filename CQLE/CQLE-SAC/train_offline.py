@@ -20,7 +20,7 @@ def get_config():
     parser.add_argument("--run_name", type=str, default="CQL", help="Run name, default: CQL")
     parser.add_argument("--env", type=str, default="halfcheetah-medium-v2",
                         help="Gym environment name, default: Pendulum-v0")
-    parser.add_argument("--episodes", type=int, default=100, help="Number of episodes, default: 100")
+    parser.add_argument("--episodes", type=int, default=200, help="Number of episodes, default: 100")
     parser.add_argument("--seed", type=int, default=1, help="Seed, default: 1")
     parser.add_argument("--log_video", type=int, default=0,
                         help="Log agent behaviour to wanbd when set to 1, default: 0")
@@ -38,7 +38,8 @@ def get_config():
     parser.add_argument("--is_GMM", type=int, default=0, help="")
     parser.add_argument("--s", type=float, default=1.0, help="")
     parser.add_argument("--strategy", type=str, default="autocratic", help="The strategy to vote")
-    parser.add_argument("--pca_n", type=int, default=2, help="The strategy to vote")
+    parser.add_argument("--pca_n", type=int, default=2, help="The pca component number")
+    parser.add_argument("--standardize_q", type=int, default=1, help="1 if standardize q-values across agents")
 
     args = parser.parse_args()
     return args
@@ -104,6 +105,7 @@ def evaluate(env, policy, eval_runs=5, is_ensemble=False):
             qs_samples = np.amin([q1s_samples, q2s_samples], axis=0)
             policy.qs_sample_means = np.mean(qs_samples, axis=0)
             policy.qs_sample_stds = np.std(qs_samples, axis=0)
+            print(policy.qs_sample_means, policy.qs_sample_stds)
             state = state.cpu().detach().numpy()
 
         rewards = 0
@@ -144,6 +146,7 @@ def train(config):
     env.seed(config.seed)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(f"--------------------------device is {device}------------------------------")
 
     # Initialize some statistics
     batches = 0
@@ -151,7 +154,7 @@ def train(config):
     training_times = []
     evaluation_times = []
 
-    run_name = f"{config.strategy}-{'gmm' if config.is_GMM else 'rnd'}-{config.num_agents}-agents-s-{config.s}"
+    run_name = f"{config.strategy}-{'gmm' if config.is_GMM else 'rnd'}-{config.num_agents}-agents-{config.s}-s-{config.episodes}-epochs-{'l' if config.with_lagrange else ''}-{'' if config.standardize_q else 'no-st'}"
 
     with wandb.init(project="CQL-ensemble-offline-halfcheetah", name=run_name, config=config):
 
@@ -170,7 +173,8 @@ def train(config):
             is_GMM=config.is_GMM == 1,
             s=config.s,
             strategy=config.strategy,
-            pca=pca
+            pca=pca,
+            standardize_q=config.standardize_q == 1
         )
 
         # Calculate the mean and covariance matrix of each agent
@@ -291,5 +295,6 @@ def train(config):
     print(f"dataloaders preparation time is {dataloaders_preparation_time}")
 
 if __name__ == "__main__":
+    print(torch.cuda.get_device_name(torch.cuda.current_device()))
     config = get_config()
     train(config)
