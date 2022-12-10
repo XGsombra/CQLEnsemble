@@ -98,15 +98,13 @@ def evaluate(env, policy, eval_runs=5, is_ensemble=False):
         if is_ensemble:
             # standardize the q-value distributions of each agent according to the mean and std of sample q-values
             action_dim = env.action_space.shape[0]
-            state = Tensor(state).to(policy.device)
             action_samples = (torch.rand((policy.action_sample_num, action_dim)) * 2 - 1).to(policy.device)
-            q1s_samples = np.array([[policy.CQL_agents[i].critic1(state, action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
-            q2s_samples = np.array([[policy.CQL_agents[i].critic2(state, action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
+            print(policy.obs_means)
+            q1s_samples = np.array([[policy.CQL_agents[i].critic1(policy.obs_means[i].to(policy.device), action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
+            q2s_samples = np.array([[policy.CQL_agents[i].critic2(policy.obs_means[i].to(policy.device), action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
             qs_samples = np.amin([q1s_samples, q2s_samples], axis=0)
             policy.qs_sample_means = np.mean(qs_samples, axis=0)
             policy.qs_sample_stds = np.std(qs_samples, axis=0)
-            print(policy.qs_sample_means, policy.qs_sample_stds)
-            state = state.cpu().detach().numpy()
 
         rewards = 0
         while True:
@@ -184,6 +182,7 @@ def train(config):
             dataset_as_array = np.vstack([np.array(dataloaders[i].dataset[j][0]) for j in range(dataset_size)])
             ensemble.means.append(np.mean(ensemble.pca.transform(dataset_as_array), axis=0))
             ensemble.covariances.append(np.cov(ensemble.pca.transform(dataset_as_array).T))
+            ensemble.obs_means.append(Tensor(np.mean(dataset_as_array, axis=0)))
         ensemble.means = np.array(ensemble.means)
         ensemble.covariances = np.array(ensemble.covariances)
         print("------------------------finished calculating means and variances------------------------------")
@@ -257,11 +256,20 @@ def train(config):
             if i % config.eval_every == 0:
                 print(f"Started evaluation for episode {i}")
                 start_time = time.process_time()
-                eval_reward = evaluate(env, ensemble, is_ensemble=True)
+                # If evaluating all voting strategies
+                if ensemble.strategy == "all":
+                    for strategy in ["autocratic", "aristocratic", "meritocratic"]:
+                        ensemble.strategy = strategy
+                        reward = evaluate(env, ensemble, is_ensemble=True)
+                        print(f"{strategy} strategy has reward of {reward}")
+                        wandb.log({f"Reward of {strategy}": reward})
+                    ensemble.strategy = "all"
+                else:
+                    wandb.log({"Test Reward": evaluate(env, ensemble, is_ensemble=True)})
                 evaluation_times.append(time.process_time() - start_time)
                 for agent_id in range(ensemble.num_agents):
                     wandb.log({f"Reward for Agent {agent_id}": evaluate(env, ensemble.CQL_agents[agent_id])})
-                wandb.log({"Test Reward": eval_reward, "Episode": i, "Batches": batches}, step=batches)
+                wandb.log({"Episode": i, "Batches": batches}, step=batches)
 
                 average10.append(eval_reward)
                 print("Episode: {} | Reward: {} | Polciy Loss: {} | Batches: {}".format(i, eval_reward, policy_loss,

@@ -48,7 +48,7 @@ class CQLEnsemble():
             s=1,
             strategy="autocratic",
             pca=None,
-            action_sample_num=1000,
+            action_sample_num=100,
             standardize_q=True
     ):
         # Ensemble Attributes
@@ -65,6 +65,7 @@ class CQLEnsemble():
         self.action_sample_num = action_sample_num
         self.qs_sample_means = None
         self.qs_sample_stds = None
+        self.obs_means = []
 
         # CQL Agents
         for i in range(self.num_agents):
