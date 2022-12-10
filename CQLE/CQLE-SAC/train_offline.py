@@ -99,7 +99,6 @@ def evaluate(env, policy, eval_runs=5, is_ensemble=False):
             # standardize the q-value distributions of each agent according to the mean and std of sample q-values
             action_dim = env.action_space.shape[0]
             action_samples = (torch.rand((policy.action_sample_num, action_dim)) * 2 - 1).to(policy.device)
-            print(policy.obs_means)
             q1s_samples = np.array([[policy.CQL_agents[i].critic1(policy.obs_means[i].to(policy.device), action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
             q2s_samples = np.array([[policy.CQL_agents[i].critic2(policy.obs_means[i].to(policy.device), action_sample).cpu().detach().numpy() for i in range(policy.num_agents)] for action_sample in action_samples])
             qs_samples = np.amin([q1s_samples, q2s_samples], axis=0)
@@ -258,11 +257,13 @@ def train(config):
                 start_time = time.process_time()
                 # If evaluating all voting strategies
                 if ensemble.strategy == "all":
-                    for strategy in ["autocratic", "aristocratic", "meritocratic"]:
-                        ensemble.strategy = strategy
-                        reward = evaluate(env, ensemble, is_ensemble=True)
-                        print(f"{strategy} strategy has reward of {reward}")
-                        wandb.log({f"Reward of {strategy}": reward})
+                    for standardize_q in [True, False]:
+                        ensemble.standardize_q = standardize_q
+                        for strategy in ["autocratic", "aristocratic", "meritocratic"]:
+                            ensemble.strategy = strategy
+                            reward = evaluate(env, ensemble, is_ensemble=True)
+                            print(f"{strategy} strategy has reward of {reward}")
+                            wandb.log({f"Reward of {strategy}{'with Q-standardization' if standardize_q else ''}": reward})
                     ensemble.strategy = "all"
                 else:
                     wandb.log({"Test Reward": evaluate(env, ensemble, is_ensemble=True)})
@@ -272,7 +273,7 @@ def train(config):
                 wandb.log({"Episode": i, "Batches": batches}, step=batches)
 
                 average10.append(eval_reward)
-                print("Episode: {} | Reward: {} | Polciy Loss: {} | Batches: {}".format(i, eval_reward, policy_loss,
+                print("Episode: {} | Polciy Loss: {} | Batches: {}".format(i, policy_loss,
                                                                                         batches, ))
 
             wandb.log({

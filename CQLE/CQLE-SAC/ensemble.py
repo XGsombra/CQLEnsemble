@@ -15,7 +15,7 @@ def vote(actions, confidences, qs, strategy):
 
     if strategy == "aristocratic":
         # Only the agents with over-average confidence could vote
-        candidate_indices = q_mean_across_agents > np.mean(q_mean_across_agents)
+        candidate_indices = confidences > np.mean(confidences)
         candidate_qs = q_mean_across_agents[candidate_indices]
         candidate_actions = actions[candidate_indices]
         return candidate_actions[np.argmax(candidate_qs)]
